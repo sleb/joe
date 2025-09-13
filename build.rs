@@ -1,59 +1,40 @@
 use std::env;
-
 use std::path::Path;
 use std::process::Command;
 
 fn main() {
     // Tell cargo to rerun this build script if these files change
-    println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-changed=.git/HEAD");
     println!("cargo:rerun-if-changed=.git/refs/heads/main");
+    println!("cargo:rerun-if-changed=.git/refs/tags");
 
-    // Get version from Cargo.toml
-    let cargo_version = env::var("CARGO_PKG_VERSION").unwrap();
+    // Get git version information
+    let version_info = get_git_version_info();
 
-    // Try to get git information
-    let git_info = get_git_info();
+    match version_info {
+        Ok(info) => {
+            // Set environment variables that our code can access
+            println!("cargo:rustc-env=BUILD_VERSION={}", info.version);
+            println!("cargo:rustc-env=BUILD_VERSION_FULL={}", info.full_version);
+            println!("cargo:rustc-env=BUILD_GIT_HASH={}", info.git_hash);
+            println!("cargo:rustc-env=BUILD_GIT_BRANCH={}", info.git_branch);
+            println!("cargo:rustc-env=BUILD_GIT_DIRTY={}", info.git_dirty);
+            println!("cargo:rustc-env=BUILD_IS_RELEASE={}", info.is_release);
+            println!(
+                "cargo:rustc-env=BUILD_COMMITS_SINCE_TAG={}",
+                info.commits_since_tag
+            );
 
-    // Set environment variables that our code can access
-    println!("cargo:rustc-env=BUILD_CARGO_VERSION={}", cargo_version);
-
-    match git_info {
-        Some(info) => {
-            println!("cargo:rustc-env=BUILD_GIT_HASH={}", info.hash);
-            println!("cargo:rustc-env=BUILD_GIT_BRANCH={}", info.branch);
-            println!("cargo:rustc-env=BUILD_GIT_DIRTY={}", info.dirty);
-
-            if let Some(tag) = &info.latest_tag {
-                println!("cargo:rustc-env=BUILD_GIT_TAG={}", tag);
-
-                // Extract version from tag (remove 'v' prefix if present)
-                let tag_version = tag.strip_prefix('v').unwrap_or(tag);
-                println!("cargo:rustc-env=BUILD_TAG_VERSION={}", tag_version);
-
-                // Check version consistency
-                if cargo_version != tag_version {
-                    println!("cargo:warning=Version mismatch detected:");
-                    println!("cargo:warning=  Cargo.toml: {}", cargo_version);
-                    println!("cargo:warning=  Latest tag: {}", tag_version);
-                    println!("cargo:warning=Consider updating version or creating new tag");
-                }
+            if let Some(tag) = &info.base_tag {
+                println!("cargo:rustc-env=BUILD_BASE_TAG={}", tag);
             } else {
-                println!("cargo:rustc-env=BUILD_GIT_TAG=");
-                println!("cargo:rustc-env=BUILD_TAG_VERSION=");
-                println!(
-                    "cargo:warning=No git tags found. Consider creating tag: git tag v{}",
-                    cargo_version
-                );
+                println!("cargo:rustc-env=BUILD_BASE_TAG=");
             }
         }
-        None => {
-            // Not in a git repository or git not available
-            println!("cargo:rustc-env=BUILD_GIT_HASH=unknown");
-            println!("cargo:rustc-env=BUILD_GIT_BRANCH=unknown");
-            println!("cargo:rustc-env=BUILD_GIT_DIRTY=false");
-            println!("cargo:rustc-env=BUILD_GIT_TAG=");
-            println!("cargo:rustc-env=BUILD_TAG_VERSION=");
+        Err(e) => {
+            // Build fails if we can't determine proper version
+            println!("cargo:warning={}", e);
+            panic!("{}", e);
         }
     }
 
@@ -63,49 +44,168 @@ fn main() {
         .to_string();
     println!("cargo:rustc-env=BUILD_TIMESTAMP={}", build_time);
 
-    // Add target information
+    // Add target and profile information
     let target = env::var("TARGET").unwrap_or_else(|_| "unknown".to_string());
-    println!("cargo:rustc-env=BUILD_TARGET={}", target);
-
-    // Add profile information
     let profile = env::var("PROFILE").unwrap_or_else(|_| "unknown".to_string());
+    println!("cargo:rustc-env=BUILD_TARGET={}", target);
     println!("cargo:rustc-env=BUILD_PROFILE={}", profile);
 }
 
 #[derive(Debug)]
-struct GitInfo {
-    hash: String,
-    branch: String,
-    dirty: bool,
-    latest_tag: Option<String>,
+struct GitVersionInfo {
+    /// Clean version string (e.g., "1.0.0" or "1.0.0-dev.5")
+    version: String,
+    /// Full version with git info (e.g., "1.0.0-5-g1a2b3c4-dirty")
+    full_version: String,
+    /// Short git hash
+    git_hash: String,
+    /// Current branch
+    git_branch: String,
+    /// Whether working directory is dirty
+    git_dirty: bool,
+    /// Whether this is a release build (on exact tag)
+    is_release: bool,
+    /// Number of commits since the base tag
+    commits_since_tag: u32,
+    /// The base tag this version is derived from
+    base_tag: Option<String>,
 }
 
-fn get_git_info() -> Option<GitInfo> {
+fn get_git_version_info() -> Result<GitVersionInfo, String> {
     // Check if we're in a git repository
     if !Path::new(".git").exists() {
-        return None;
+        return Err(
+            "Not in a git repository. Git-based versioning requires a git repository.\n\
+             Please run: git init && git add . && git commit -m 'initial commit' && git tag v0.1.0"
+                .to_string(),
+        );
     }
 
-    // Get git hash
-    let hash = run_git_command(&["rev-parse", "--short", "HEAD"])?;
+    // First check if any tags exist
+    let has_tags = run_git_command(&["tag", "-l"])
+        .map(|output| !output.trim().is_empty())
+        .unwrap_or(false);
 
-    // Get current branch
-    let branch = run_git_command(&["rev-parse", "--abbrev-ref", "HEAD"])
+    if !has_tags {
+        return Err(
+            "No git tags found. Git-based versioning requires at least one semantic version tag.\n\
+             Please create an initial tag: git tag v0.1.0"
+                .to_string(),
+        );
+    }
+
+    // Use git describe to get version information
+    let describe_output = run_git_command(&["describe", "--tags", "--long", "--dirty", "--always"])
+        .ok_or_else(|| "Failed to run 'git describe'".to_string())?;
+
+    // Parse git describe output
+    let (version, full_version, is_release, commits_since_tag, base_tag) =
+        parse_git_describe(&describe_output)?;
+
+    // Get additional git information
+    let git_hash = run_git_command(&["rev-parse", "--short", "HEAD"])
+        .ok_or_else(|| "Failed to get git hash".to_string())?;
+
+    let git_branch = run_git_command(&["rev-parse", "--abbrev-ref", "HEAD"])
         .unwrap_or_else(|| "unknown".to_string());
 
-    // Check if working directory is dirty
-    let status_output = run_git_command(&["status", "--porcelain"])?;
-    let dirty = !status_output.trim().is_empty();
+    let git_dirty = describe_output.contains("-dirty");
 
-    // Get latest tag
-    let latest_tag = run_git_command(&["describe", "--tags", "--abbrev=0"]);
-
-    Some(GitInfo {
-        hash,
-        branch,
-        dirty,
-        latest_tag,
+    Ok(GitVersionInfo {
+        version,
+        full_version,
+        git_hash,
+        git_branch,
+        git_dirty,
+        is_release,
+        commits_since_tag,
+        base_tag,
     })
+}
+
+fn parse_git_describe(
+    describe: &str,
+) -> Result<(String, String, bool, u32, Option<String>), String> {
+    // git describe formats:
+    // v1.0.0                     (exact tag)
+    // v1.0.0-5-g1a2b3c4          (5 commits after v1.0.0)
+    // v1.0.0-5-g1a2b3c4-dirty    (5 commits after v1.0.0, working directory dirty)
+
+    let full_version = describe.to_string();
+    let clean_describe = describe.replace("-dirty", "");
+
+    // Check if this is an exact tag (no commits after)
+    let parts: Vec<&str> = clean_describe.split('-').collect();
+
+    if parts.len() == 1 {
+        // Exact tag match (e.g., "v1.0.0")
+        let tag = parts[0];
+        if !tag.starts_with('v') {
+            return Err(format!(
+                "Git tag '{}' doesn't follow semantic versioning format (should start with 'v').\n\
+                 Example: git tag v1.0.0",
+                tag
+            ));
+        }
+
+        let version = tag.strip_prefix('v').unwrap().to_string();
+        Ok((version, full_version, true, 0, Some(tag.to_string())))
+    } else if parts.len() >= 3 {
+        // Check if this is actually an exact tag (0 commits since tag)
+        let commits_str = parts[1];
+        if commits_str == "0" {
+            // This is an exact tag match, just with --long format
+            let tag = parts[0];
+            if !tag.starts_with('v') {
+                return Err(format!(
+                    "Git tag '{}' doesn't follow semantic versioning format (should start with 'v').\n\
+                     Example: git tag v1.0.0",
+                    tag
+                ));
+            }
+            let version = tag.strip_prefix('v').unwrap().to_string();
+            Ok((version, full_version, true, 0, Some(tag.to_string())))
+        } else {
+            // Development version (e.g., "v1.0.0-5-g1a2b3c4")
+            let tag = parts[0];
+
+            if !tag.starts_with('v') {
+                return Err(format!(
+                    "Git tag '{}' doesn't follow semantic versioning format (should start with 'v').\n\
+                     Example: git tag v1.0.0",
+                    tag
+                ));
+            }
+
+            let commits_since_tag: u32 = commits_str.parse().map_err(|_| {
+                format!(
+                    "Invalid commit count '{}' in git describe output",
+                    commits_str
+                )
+            })?;
+
+            let base_version = tag.strip_prefix('v').unwrap();
+            let dev_version = if describe.contains("-dirty") {
+                format!("{}-dev.{}.dirty", base_version, commits_since_tag)
+            } else {
+                format!("{}-dev.{}", base_version, commits_since_tag)
+            };
+
+            Ok((
+                dev_version,
+                full_version,
+                false,
+                commits_since_tag,
+                Some(tag.to_string()),
+            ))
+        }
+    } else {
+        Err(format!(
+            "Unexpected git describe format: '{}'\n\
+             Expected format like 'v1.0.0' or 'v1.0.0-5-g1a2b3c4'",
+            describe
+        ))
+    }
 }
 
 fn run_git_command(args: &[&str]) -> Option<String> {
