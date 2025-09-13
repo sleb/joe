@@ -103,56 +103,59 @@ CHIP-8 is an interpreted programming language developed in the 1970s for simple 
 
 ## Development Roadmap
 
-### Phase 1: Core Foundation ✅
+### Phase 1: Core Foundation ✅ (v0.1.0)
 
 - [x] Basic project structure
 - [x] CLI argument parsing setup
+- [x] Git-based semantic versioning system
 - [ ] Memory system implementation
 - [ ] CPU structure and basic instruction decoding
 
-### Phase 2: CPU Implementation
+### Phase 2: Core Emulator (v0.2.0)
 
+- [ ] Memory system implementation (4KB RAM, font data)
+- [ ] CPU structure and register management
 - [ ] Implement all 35 CHIP-8 instructions
-- [ ] Register operations
-- [ ] Stack management
-- [ ] Program counter logic
+- [ ] Stack management and program counter logic
 - [ ] Basic test suite for CPU operations
 
-### Phase 3: Display System
+### Phase 3: Display System (v0.3.0)
 
-- [ ] Framebuffer implementation
+- [ ] 64x32 framebuffer implementation
 - [ ] Sprite drawing with XOR logic
 - [ ] Display clear functionality
 - [ ] Collision detection for sprite drawing
+- [ ] Choose and integrate graphics library
 
-### Phase 4: Input and Timing
+### Phase 4: Input and Timing (v0.4.0)
 
-- [ ] Keypad input handling
+- [ ] 16-key keypad input handling
+- [ ] Map keyboard to CHIP-8 keypad
 - [ ] Delay timer implementation
 - [ ] Sound timer implementation
 - [ ] 60Hz timing accuracy
 
-### Phase 5: Frontend Integration
+### Phase 5: Audio and ROM Loading (v0.5.0)
 
-- [ ] Choose and integrate graphics library
-- [ ] Render display to screen
-- [ ] Map keyboard to CHIP-8 keypad
-- [ ] Basic audio output
-
-### Phase 6: ROM Loading and Testing
-
-- [ ] ROM file loading
+- [ ] Basic audio output/beep generation
+- [ ] ROM file loading (.ch8 files)
 - [ ] Error handling for invalid ROMs
+- [ ] File loading interface
+
+### Phase 6: Testing and Compatibility (v0.6.0)
+
 - [ ] Test with classic CHIP-8 games
+- [ ] ROM compatibility validation
 - [ ] Debugging tools and logging
-
-### Phase 7: Polish and Features
-
 - [ ] Performance optimization
+
+### Phase 7: Production Ready (v1.0.0)
+
 - [ ] Enhanced debugging features
 - [ ] Configuration options
-- [ ] Better error messages
-- [ ] Documentation and examples
+- [ ] Comprehensive documentation
+- [ ] Installation and distribution
+- [ ] Stable API and features
 
 ## Technical Decisions
 
@@ -212,19 +215,31 @@ We use a **Rust build script** (`build.rs`) for automatic version management and
 - **Cross-platform**: Pure Rust, no shell script dependencies
 - **Cargo integration**: Rebuilds when git state changes
 
+### Versioning Strategy
+
+**v0.x.0 = Pre-release development**
+
+- v0.1.0 = Project foundation (current)
+- v0.2.0 = Core emulator working
+- v0.3.0 = Display system
+- v0.4.0 = Input and timing
+- v0.5.0 = Audio and ROM loading
+- v0.6.0 = Testing and compatibility
+- v1.0.0 = Production ready
+
 ### Development Workflow
 
 ```bash
-# Version info (includes git status, build info, consistency checks)
+# Version info (shows current git-based version)
 just version-detailed
 
-# Build (automatic version validation warnings)
-cargo build
+# Development versions show commits since tag
+# e.g., "0.1.0-dev.5" = 5 commits since v0.1.0
 
 # Create a new release
-just release patch    # 0.1.0 -> 0.1.1
 just release minor    # 0.1.0 -> 0.2.0
-just release major    # 0.1.0 -> 1.0.0
+just release patch    # 0.2.0 -> 0.2.1
+just release major    # 0.6.0 -> 1.0.0
 ```
 
 ### Release Process
