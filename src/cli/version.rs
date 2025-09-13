@@ -1,4 +1,5 @@
 use clap::Args;
+use octo::Result;
 
 #[derive(Args)]
 pub struct VersionCommand {
@@ -8,7 +9,7 @@ pub struct VersionCommand {
 }
 
 impl VersionCommand {
-    pub fn execute(self) -> anyhow::Result<()> {
+    pub fn execute(self) -> Result<()> {
         if self.detailed {
             self.print_detailed_version();
         } else {

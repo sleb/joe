@@ -1,6 +1,7 @@
 mod version;
 
 use clap::{Parser, Subcommand};
+use octo::Result;
 
 pub use version::VersionCommand;
 
@@ -9,6 +10,11 @@ pub use version::VersionCommand;
 #[command(about = "A CHIP-8 emulator written in Rust")]
 #[command(version)]
 pub struct Cli {
+    /// Disable memory write protection for interpreter area (0x000-0x1FF)
+    /// WARNING: This allows potentially unsafe memory writes
+    #[arg(long, global = true)]
+    pub disable_write_protection: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -28,8 +34,17 @@ pub enum Commands {
     // Test(TestCommand),
 }
 
+/// Global CLI options available to all commands
+#[derive(Parser)]
+pub struct GlobalOptions {
+    /// Disable memory write protection for interpreter area (0x000-0x1FF)
+    /// WARNING: This allows potentially unsafe memory writes
+    #[arg(long, global = true)]
+    pub disable_write_protection: bool,
+}
+
 impl Cli {
-    pub fn run(self) -> anyhow::Result<()> {
+    pub fn run(self) -> Result<()> {
         match self.command {
             Commands::Version(cmd) => cmd.execute(),
         }

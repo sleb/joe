@@ -1,13 +1,10 @@
 mod cli;
 
+use anyhow::Result;
 use clap::Parser;
 use cli::Cli;
 
-fn main() {
+fn main() -> Result<()> {
     let cli = Cli::parse();
-
-    if let Err(e) = cli.run() {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
-    }
+    cli.run()
 }
