@@ -1,0 +1,17 @@
+[package]
+name = "octo"
+version = "0.1.0"
+edition = "2024"
+authors = ["sleb"]
+description = "A CHIP-8 emulator written in Rust"
+license = "MIT"
+repository = "https://github.com/sleb/octo"
+keywords = ["emulator", "chip8", "gaming", "rust"]
+categories = ["emulators", "games"]
+
+[dependencies]
+anyhow = "1.0.99"
+clap = { version = "4.5.47", features = ["derive"] }
+
+[build-dependencies]
+chrono = { version = "0.4", features = ["serde"] }
