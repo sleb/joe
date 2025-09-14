@@ -58,66 +58,72 @@ CHIP-8 is an interpreted programming language developed in the 1970s for simple 
 
 ### Core Components
 
-#### 1. CPU (`src/cpu.rs`)
+#### 1. CPU (`src/cpu.rs`) ✅
 
-- Instruction decoding and execution
-- Register management
+- Instruction decoding and execution framework
+- Register management (V0-VF, I, PC, SP)
 - Program counter and stack operations
-- Timer management
+- Timer management (delay and sound timers)
+- Core instructions: load, add, jump, call/return, set index
 
-#### 2. Memory (`src/memory.rs`)
+#### 2. Memory (`src/memory.rs`) ✅
 
-- 4KB RAM management
-- Font data storage
-- ROM loading utilities
+- 4KB RAM management with bounds checking
+- Built-in font data (0x050-0x0A0)
+- ROM loading with validation
+- Write protection for interpreter area
+- MemoryBus trait abstraction for CPU integration
 
-#### 3. Display (`src/display.rs`)
+#### 3. Display (`src/display.rs`) 🚧
 
-- 64x32 pixel framebuffer
-- Sprite drawing with XOR logic
-- Screen clearing functionality
+- 64x32 pixel framebuffer (TODO)
+- Sprite drawing with XOR logic (TODO)
+- Screen clearing functionality (TODO)
 
-#### 4. Input (`src/input.rs`)
+#### 4. Input (`src/input.rs`) 🚧
 
-- 16-key keypad mapping
-- Key state management
-- Keyboard event handling
+- 16-key keypad mapping (TODO)
+- Key state management (TODO)
+- Keyboard event handling (TODO)
 
-#### 5. Audio (`src/audio.rs`)
+#### 5. Audio (`src/audio.rs`) 🚧
 
-- Sound timer management
-- Beep generation
+- Sound timer management (TODO)
+- Beep generation (TODO)
 
-#### 6. Emulator (`src/emulator.rs`)
+#### 6. Emulator (`src/emulator.rs`) 🚧
 
-- Main emulation loop
-- Component coordination
-- Timing management
+- Main emulation loop (TODO)
+- Component coordination (TODO)
+- Timing management (TODO)
 
-#### 7. Frontend (`src/frontend/`)
+#### 7. Frontend (`src/frontend/`) 🚧
 
-- Graphics rendering (likely using `minifb` or `pixels`)
-- Input handling
-- Audio output
-- File loading interface
+- Graphics rendering (TODO - likely using `minifb` or `pixels`)
+- Input handling (TODO)
+- Audio output (TODO)
+- File loading interface (TODO)
 
 ## Development Roadmap
 
-### Phase 1: Core Foundation ✅ (v0.1.0)
+### Phase 1: Core Foundation ✅ (v0.1.1)
 
-- [x] Basic project structure
-- [x] CLI argument parsing setup
+- [x] Basic project structure and CLI
 - [x] Git-based semantic versioning system
-- [ ] Memory system implementation
-- [ ] CPU structure and basic instruction decoding
+- [x] Memory system with 4KB RAM and font data
+- [x] ROM loading with validation and write protection
+- [x] Comprehensive testing framework and lean testing philosophy
 
-### Phase 2: Core Emulator (v0.2.0)
+### Phase 2: Core Emulator 🚧 (v0.2.0)
 
-- [ ] Memory system implementation (4KB RAM, font data)
-- [ ] CPU structure and register management
-- [ ] Implement all 35 CHIP-8 instructions
-- [ ] Stack management and program counter logic
-- [ ] Basic test suite for CPU operations
+- [x] CPU structure and register management (V0-VF, I, PC, SP)
+- [x] MemoryBus trait abstraction for clean CPU-memory interaction
+- [x] Instruction fetch/decode/execute framework
+- [x] Core instructions: load, add, jump, call/return, set index
+- [x] Stack management and program counter logic
+- [ ] Remaining CHIP-8 instructions (arithmetic, bitwise, etc.)
+- [ ] ASCII display for basic sprite rendering
+- [ ] Basic emulation loop to run simple ROMs
 
 ### Phase 3: Display System (v0.3.0)
 
@@ -219,12 +225,13 @@ We use a **Rust build script** (`build.rs`) for automatic version management and
 
 **Pre-1.0 Development Versions:**
 
-- ✅ **v0.1.0** - Project foundation (CLI, build system, tooling, memory system)
-- 🎯 **v0.2.0** - Core emulator (CPU + instruction execution) **[NEXT GOAL]**
-- 🎯 **v0.3.0** - Display system (64x32 framebuffer, sprite drawing)
-- 🎯 **v0.4.0** - Input and timing (16-key keypad, 60Hz timing)
-- 🎯 **v0.5.0** - Audio and ROM loading (sound timer, file loading)
-- 🎯 **v0.6.0** - Testing and compatibility (ROM compatibility, debugging)
+- ✅ **v0.1.1** - Foundation complete (CLI, memory system, testing framework)
+- 🚧 **v0.2.0** - CPU foundation (registers, core instructions, execution framework) **[IN PROGRESS]**
+- 🎯 **v0.3.0** - Complete CPU (all 35 instructions, display integration)
+- 🎯 **v0.4.0** - Display system (64x32 framebuffer, sprite drawing)
+- 🎯 **v0.5.0** - Input and timing (16-key keypad, 60Hz timing)
+- 🎯 **v0.6.0** - Audio and ROM loading (sound timer, file loading)
+- 🎯 **v0.7.0** - Testing and compatibility (ROM compatibility, debugging)
 - 🎯 **v1.0.0** - Production ready (stable API, documentation, distribution)
 
 **Patch Versions (v0.x.y):**
