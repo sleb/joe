@@ -6,7 +6,7 @@ authors = ["sleb"]
 description = "A CHIP-8 emulator written in Rust"
 license = "MIT"
 repository = "https://github.com/sleb/octo"
-keywords = ["emulator", "chip8", "gaming", "rust"]
+keywords = ["emulator", "chip8", "gaming", "interpreter"]
 categories = ["emulators", "games"]
 
 [dependencies]

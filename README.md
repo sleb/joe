@@ -171,7 +171,7 @@ CHIP-8 is an interpreted programming language developed in the 1970s for simple 
 - **Modular design**: Separate modules for each major component
 - **Trait-based interfaces**: Allow for different frontend implementations
 - **Error handling**: Use `Result` types and proper error propagation
-- **Testing**: Unit tests for each component, integration tests for ROM compatibility
+- **Lean testing**: Focused unit tests, minimal integration tests for real workflows
 
 ### Performance Considerations
 
@@ -282,6 +282,42 @@ just status
 # Common development cycle
 just check              # Before committing
 just build && just test # Verify everything works
+```
+
+## Testing Philosophy
+
+We follow a **lean testing approach** that avoids redundancy and over-testing:
+
+### Testing Tenets
+
+1. **Purpose-driven**: Every test should have a clear, unique purpose
+2. **Avoid redundancy**: Don't test the same thing in multiple places
+3. **Focus on behavior**: Test what the code does, not how it's implemented
+4. **Real scenarios**: Integration tests should reflect actual usage patterns
+5. **No hardcoded validation**: Don't test constants with more constants
+
+### Test Structure
+
+- **Unit Tests** (`src/module.rs`): Fast, focused tests of individual functions
+- **Integration Tests** (`tests/`): Real workflows spanning multiple components
+- **No Library Tests**: Avoid intermediate testing layers that duplicate coverage
+
+### Examples
+
+```rust
+// ✅ Good: Tests real behavior
+#[test]
+fn test_rom_loading_workflow() { /* ... */ }
+
+// ❌ Avoid: Testing constants with constants
+#[test]
+fn test_memory_size_is_4096() {
+    assert_eq!(MEMORY_SIZE, 4096);  // Pointless
+}
+
+// ❌ Avoid: Redundant API testing
+#[test]
+fn test_memory_api_in_lib() { /* already tested in memory.rs */ }
 ```
 
 ## Contributing
