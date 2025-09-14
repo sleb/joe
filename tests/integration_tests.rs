@@ -1,8 +1,8 @@
-//! Integration tests for the OCTO CHIP-8 emulator library
+//! Integration tests for the JOE CHIP-8 emulator library
 //!
 //! Tests real workflows and edge cases that span multiple components.
 
-use octo::{Memory, MemoryError, constants};
+use joe::{Memory, MemoryError, constants};
 
 #[test]
 fn test_complete_rom_loading_workflow() {

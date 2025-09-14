@@ -1,6 +1,6 @@
-# OCTO - CHIP-8 Emulator
+# JOE - CHIP-8 Emulator
 
-A CHIP-8 emulator written in Rust as a learning project to explore low-level programming, emulation concepts, and Rust systems programming.
+A CHIP-8 emulator written in Rust as a learning project to explore low-level programming, emulation concepts, and Rust systems programming. Named **JOE** in tribute to **Joseph Weisbecker**, who created CHIP-8 at RCA in 1977.
 
 ## Project Overview
 
@@ -17,7 +17,7 @@ We can now execute the IBM Logo ROM, demonstrating:
 - ✅ Memory management with ROM loading
 - ✅ ASCII terminal rendering for development
 
-Try it yourself: `octo run roms/ibm-logo.ch8`
+Try it yourself: `joe run roms/ibm-logo.ch8`
 
 ## Installation
 
@@ -25,45 +25,45 @@ Try it yourself: `octo run roms/ibm-logo.ch8`
 
 ```bash
 # Install the latest release from GitHub
-cargo install --git https://github.com/sleb/octo --tag v0.1.5
+cargo install --git https://github.com/sleb/joe --tag v0.1.5
 
 # Verify installation
-octo version
+joe version
 ```
 
 ### Updating
 
 ```bash
 # Update to the latest release
-cargo install --git https://github.com/sleb/octo --tag v0.1.5 --force
+cargo install --git https://github.com/sleb/joe --tag v0.1.5 --force
 
 # Or uninstall and reinstall
-cargo uninstall octo
-cargo install --git https://github.com/sleb/octo --tag v0.1.5
+cargo uninstall joe
+cargo install --git https://github.com/sleb/joe --tag v0.1.5
 ```
 
 ### From Specific Version
 
 ```bash
 # Install a specific version (replace v0.1.2 with desired version)
-cargo install --git https://github.com/sleb/octo --tag v0.1.2
+cargo install --git https://github.com/sleb/joe --tag v0.1.2
 ```
 
 ### From Source (Development)
 
 ```bash
 # Clone the repository
-git clone https://github.com/sleb/octo.git
-cd octo
+git clone https://github.com/sleb/joe.git
+cd joe
 
 # Install the binary from source
 cargo install --path .
 
 # Verify installation
-octo version
+joe version
 ```
 
-> **Note:** Check the [releases page](https://github.com/sleb/octo/releases) for the latest version number and replace `v0.1.3` in the commands above with the newest release tag.
+> **Note:** Check the [releases page](https://github.com/sleb/joe/releases) for the latest version number and replace `v0.1.3` in the commands above with the newest release tag.
 
 ### Prerequisites
 
@@ -135,7 +135,7 @@ To see the emulator in action with the IBM Logo ROM:
 
 ```bash
 # After installation (see Installation section above)
-octo run roms/ibm-logo.ch8
+joe run roms/ibm-logo.ch8
 ```
 
 You'll see the classic IBM logo being drawn in real-time with ASCII art in your terminal! The emulator shows continuous display updates as the ROM executes, just like a real CHIP-8 system. Use `Ctrl+C` to stop execution and see statistics.
@@ -146,36 +146,36 @@ You'll see the classic IBM logo being drawn in real-time with ASCII art in your 
 
 ```bash
 # Run the IBM Logo ROM with default settings (continuous display updates)
-octo run roms/ibm-logo.ch8
+joe run roms/ibm-logo.ch8
 
 # Run with slower updates to see the logo being drawn step by step
 # Press Ctrl+C anytime to stop and see statistics
-octo run roms/ibm-logo.ch8 --cycle-delay-ms 500
+joe run roms/ibm-logo.ch8 --cycle-delay-ms 500
 
 # Run with verbose output showing CPU state each cycle
-octo run roms/ibm-logo.ch8 --verbose
+joe run roms/ibm-logo.ch8 --verbose
 
 # Show only the final display state (no continuous updates)
-octo run roms/ibm-logo.ch8 --final-only
+joe run roms/ibm-logo.ch8 --final-only
 
 # Run in headless mode (no display output, useful for testing)
-octo run roms/ibm-logo.ch8 --headless
+joe run roms/ibm-logo.ch8 --headless
 
 # Set maximum cycles (0 = unlimited, programs can run indefinitely)
-octo run roms/ibm-logo.ch8 --max-cycles 100
+joe run roms/ibm-logo.ch8 --max-cycles 100
 
 # Fast execution with final display only
-octo run roms/ibm-logo.ch8 --cycle-delay-ms 0 --final-only
+joe run roms/ibm-logo.ch8 --cycle-delay-ms 0 --final-only
 ```
 
 ### Analyzing ROMs
 
 ```bash
 # Show disassembly and instruction analysis
-octo analyze roms/ibm-logo.ch8 --disassemble --stats
+joe analyze roms/ibm-logo.ch8 --disassemble --stats
 
 # Quick analysis (shows what instructions are needed)
-octo analyze roms/ibm-logo.ch8
+joe analyze roms/ibm-logo.ch8
 ```
 
 ## Project Architecture
@@ -237,7 +237,7 @@ octo analyze roms/ibm-logo.ch8
 
 - **Complete instruction set**: All 35 CHIP-8 opcodes implemented and tested
 - **Full emulation**: ROM loading, execution, display, and statistics
-- **Professional CLI**: `octo run` and `octo analyze` commands with comprehensive options
+- **Professional CLI**: `joe run` and `joe analyze` commands with comprehensive options
 - **Real-time display**: Continuous ASCII rendering with smart update logic
 - **Memory system**: 4KB RAM, font data, ROM loading with validation
 - **Display system**: 64x32 framebuffer with XOR sprite drawing and collision detection
@@ -555,17 +555,17 @@ Once installed, use these commands:
 
 ```bash
 # Run CHIP-8 ROMs
-octo run roms/ibm-logo.ch8
-octo run rom-file.ch8 --verbose
-octo run rom-file.ch8 --headless --cycle-delay-ms 0
+joe run roms/ibm-logo.ch8
+joe run rom-file.ch8 --verbose
+joe run rom-file.ch8 --headless --cycle-delay-ms 0
 
 # Analyze ROMs
-octo analyze roms/ibm-logo.ch8
-octo analyze rom-file.ch8 --disassemble
+joe analyze roms/ibm-logo.ch8
+joe analyze rom-file.ch8 --disassemble
 
 # System information
-octo version
-octo --help
+joe version
+joe --help
 ```
 
 ## Development

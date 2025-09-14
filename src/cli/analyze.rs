@@ -1,5 +1,5 @@
 use clap::Parser;
-use octo::{Memory, Result, analyze_instruction_usage, disassemble_rom, print_disassembly};
+use joe::{Memory, Result, analyze_instruction_usage, disassemble_rom, print_disassembly};
 use std::path::PathBuf;
 
 #[derive(Parser)]

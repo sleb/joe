@@ -3,15 +3,15 @@ mod run;
 mod version;
 
 use clap::{Parser, Subcommand};
-use octo::Result;
+use joe::Result;
 
 pub use analyze::AnalyzeCommand;
 pub use run::RunCommand;
 pub use version::VersionCommand;
 
 #[derive(Parser)]
-#[command(name = "octo")]
-#[command(about = "A CHIP-8 emulator written in Rust")]
+#[command(name = "joe")]
+#[command(about = "A CHIP-8 emulator written in Rust - tribute to Joseph Weisbecker")]
 #[command(version)]
 pub struct Cli {
     /// Disable memory write protection for interpreter area (0x000-0x1FF)

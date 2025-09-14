@@ -1,11 +1,11 @@
 [package]
-name = "octo"
+name = "joe"
 version = "0.1.5"
 edition = "2024"
 authors = ["sleb"]
-description = "A CHIP-8 emulator written in Rust"
+description = "A CHIP-8 emulator written in Rust - tribute to Joseph Weisbecker"
 license = "MIT"
-repository = "https://github.com/sleb/octo"
+repository = "https://github.com/sleb/joe"
 keywords = ["emulator", "chip8", "gaming", "interpreter"]
 categories = ["emulators", "games"]
 

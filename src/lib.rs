@@ -1,4 +1,4 @@
-//! OCTO - CHIP-8 Emulator Library
+//! JOE - CHIP-8 Emulator Library
 //!
 //! A working CHIP-8 emulator implementation in Rust providing core emulation functionality.
 //! This library can be used standalone or with the CLI frontend.
@@ -27,7 +27,7 @@
 //! # Quick Start
 //!
 //! ```rust,no_run
-//! use octo::{Memory, Cpu, Display, AsciiRenderer, Renderer};
+//! use joe::{Memory, Cpu, Display, AsciiRenderer, Renderer};
 //!
 //! // Create emulator components
 //! let mut memory = Memory::new(true);

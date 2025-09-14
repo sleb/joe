@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING**: Project renamed from `octo` to `joe` in tribute to Joseph Weisbecker (CHIP-8's creator)
+- Updated all command references: `octo run` → `joe run`, `octo analyze` → `joe analyze`, etc.
+- Repository moved from `github.com/sleb/octo` to `github.com/sleb/joe`
+- Package name changed from `octo` to `joe` in Cargo.toml
+
 ### Fixed
 
 - Build script now gracefully falls back to Cargo.toml version when git versioning isn't available

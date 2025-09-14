@@ -1,5 +1,5 @@
 use clap::Parser;
-use octo::{AsciiRenderer, Cpu, Display, Memory, Renderer};
+use joe::{AsciiRenderer, Cpu, Display, Memory, Renderer};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -33,7 +33,7 @@ pub struct RunCommand {
 }
 
 impl RunCommand {
-    pub fn execute(self, disable_write_protection: bool) -> octo::Result<()> {
+    pub fn execute(self, disable_write_protection: bool) -> joe::Result<()> {
         println!("CHIP-8 Emulator - Running ROM");
         println!("==============================");
 
@@ -65,7 +65,7 @@ impl RunCommand {
         // Choose renderer based on headless flag
         let renderer: Box<dyn Renderer> = if self.headless {
             println!("Running in headless mode (no display output)");
-            Box::new(octo::HeadlessRenderer)
+            Box::new(joe::HeadlessRenderer)
         } else {
             Box::new(AsciiRenderer)
         };

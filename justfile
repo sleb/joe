@@ -1,4 +1,4 @@
-# Justfile for OCTO CHIP-8 Emulator
+# Justfile for JOE CHIP-8 Emulator
 # Run `just` to see all available commands
 
 # Default command - show help
@@ -121,7 +121,7 @@ validate-versions-pre-release VERSION:
     CARGO_VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
 
     # Check README
-    README_VERSION=$(grep -o 'cargo install --git https://github.com/sleb/octo --tag v[0-9]*\.[0-9]*\.[0-9]*' README.md | head -1 | sed 's/.*--tag v//')
+    README_VERSION=$(grep -o 'cargo install --git https://github.com/sleb/joe --tag v[0-9]*\.[0-9]*\.[0-9]*' README.md | head -1 | sed 's/.*--tag v//')
 
     echo "Pre-release validation for v$EXPECTED_VERSION:"
     echo "  Cargo.toml: $CARGO_VERSION"
@@ -187,7 +187,7 @@ validate-versions:
     GIT_TAG=$(git tag --list | grep '^v[0-9]' | sort -V | tail -1 | sed 's/^v//')
 
     # Check README installation instructions
-    README_VERSION=$(grep -o 'cargo install --git https://github.com/sleb/octo --tag v[0-9]*\.[0-9]*\.[0-9]*' README.md | head -1 | sed 's/.*--tag v//')
+    README_VERSION=$(grep -o 'cargo install --git https://github.com/sleb/joe --tag v[0-9]*\.[0-9]*\.[0-9]*' README.md | head -1 | sed 's/.*--tag v//')
 
     echo "Version Status:"
     echo "  Cargo.toml: $CARGO_VERSION"
