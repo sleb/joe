@@ -179,18 +179,19 @@ pub struct AsciiRenderer;
 
 impl Renderer for AsciiRenderer {
     fn render(&self, display: &dyn DisplayBus) {
-        println!("┌{}┐", "─".repeat(DISPLAY_WIDTH * 2));
+        // Use a more compact border for continuous updates
+        println!("┌{}┐", "─".repeat(DISPLAY_WIDTH));
 
         for y in 0..DISPLAY_HEIGHT {
             print!("│");
             for x in 0..DISPLAY_WIDTH {
                 let pixel = display.get_pixel(x, y);
-                print!("{}", if pixel { "██" } else { "  " });
+                print!("{}", if pixel { "█" } else { " " });
             }
             println!("│");
         }
 
-        println!("└{}┘", "─".repeat(DISPLAY_WIDTH * 2));
+        println!("└{}┘", "─".repeat(DISPLAY_WIDTH));
     }
 }
 

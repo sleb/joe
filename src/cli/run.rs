@@ -1,7 +1,7 @@
 use clap::Parser;
 use octo::{AsciiRenderer, Cpu, Display, Memory, Renderer};
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[derive(Parser)]
 pub struct RunCommand {
@@ -9,12 +9,12 @@ pub struct RunCommand {
     #[arg(value_name = "ROM_FILE")]
     pub rom_file: PathBuf,
 
-    /// Maximum number of CPU cycles to execute (prevents infinite loops)
-    #[arg(short = 'c', long, default_value = "1000")]
+    /// Maximum number of CPU cycles to execute (0 = unlimited)
+    #[arg(short = 'c', long, default_value = "0")]
     pub max_cycles: usize,
 
-    /// Delay between CPU cycles in milliseconds
-    #[arg(short = 'd', long, default_value = "100")]
+    /// Delay between CPU cycles in milliseconds (16ms ≈ 60fps)
+    #[arg(short = 'd', long, default_value = "16")]
     pub cycle_delay_ms: u64,
 
     /// Show CPU state after each cycle
@@ -24,6 +24,10 @@ pub struct RunCommand {
     /// Use headless mode (no display output)
     #[arg(long)]
     pub headless: bool,
+
+    /// Show only final display state instead of continuous updates
+    #[arg(long)]
+    pub final_only: bool,
 }
 
 impl RunCommand {
@@ -69,14 +73,24 @@ impl RunCommand {
         if self.verbose {
             println!("Verbose mode enabled - showing CPU state each cycle");
         }
-        println!(
-            "Max cycles: {}, Cycle delay: {}ms",
-            self.max_cycles, self.cycle_delay_ms
-        );
+        if self.max_cycles > 0 {
+            println!(
+                "Max cycles: {}, Cycle delay: {}ms",
+                self.max_cycles, self.cycle_delay_ms
+            );
+        } else {
+            println!(
+                "Running indefinitely, Cycle delay: {}ms",
+                self.cycle_delay_ms
+            );
+        }
         println!("Press Ctrl+C to stop\n");
 
         let mut cycles = 0;
         let cycle_delay = Duration::from_millis(self.cycle_delay_ms);
+        let mut last_display_hash = 0u64;
+        let mut last_render_time = Instant::now();
+        let min_render_interval = Duration::from_millis(100); // Max 10 FPS for display updates
 
         loop {
             cycles += 1;
@@ -93,31 +107,30 @@ impl RunCommand {
             // Execute one CPU cycle
             match cpu.execute_cycle(&mut memory, &mut display) {
                 Ok(()) => {
-                    // Check for end conditions
-                    if cycles >= self.max_cycles {
+                    // Check for max cycles limit (if set)
+                    if self.max_cycles > 0 && cycles >= self.max_cycles {
                         println!("Reached maximum cycles ({}), stopping", self.max_cycles);
                         break;
                     }
 
-                    // Check for infinite loops (common pattern in CHIP-8 programs)
-                    if cycles > 10 {
-                        let pc = cpu.get_pc();
-                        // Simple infinite loop detection - if PC hasn't changed for several cycles
-                        // This is a heuristic and could be improved
-                        static mut LAST_PC: u16 = 0;
-                        static mut SAME_PC_COUNT: usize = 0;
+                    // Smart display rendering: only update if display changed or enough time passed
+                    if !self.headless && !self.final_only {
+                        let stats = display.get_stats();
+                        let current_hash = stats.pixels_on as u64; // Simple hash based on pixel count
+                        let now = Instant::now();
 
-                        unsafe {
-                            if pc == LAST_PC {
-                                SAME_PC_COUNT += 1;
-                                if SAME_PC_COUNT > 5 {
-                                    println!("Detected infinite loop at PC=0x{:04X}, stopping", pc);
-                                    break;
-                                }
-                            } else {
-                                SAME_PC_COUNT = 0;
-                            }
-                            LAST_PC = pc;
+                        let display_changed = current_hash != last_display_hash;
+                        let enough_time_passed =
+                            now.duration_since(last_render_time) >= min_render_interval;
+
+                        if display_changed || enough_time_passed {
+                            // Clear screen and move cursor to top
+                            print!("\x1B[2J\x1B[H");
+                            println!("CHIP-8 Display (Cycle: {}):", cycles);
+                            renderer.render(&display);
+
+                            last_display_hash = current_hash;
+                            last_render_time = now;
                         }
                     }
                 }
@@ -164,10 +177,10 @@ impl RunCommand {
 
         // Show a few registers
         for i in 0..4 {
-            if let Ok(value) = cpu.get_register(i) {
-                if value != 0 {
-                    println!("    V{}: 0x{:02X}", i, value);
-                }
+            if let Ok(value) = cpu.get_register(i)
+                && value != 0
+            {
+                println!("    V{}: 0x{:02X}", i, value);
             }
         }
 

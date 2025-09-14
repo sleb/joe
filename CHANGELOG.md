@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Real-time continuous display updates during ROM execution
+- Smart display rendering that only updates when display changes or at reasonable intervals
+- `--final-only` flag to show only the final display state instead of continuous updates
+- Improved cycle delay defaults (16ms ≈ 60fps) for smooth real-time display
+- Support for unlimited execution (removed artificial infinite loop detection)
+
+### Changed
+
+- ROM execution now runs indefinitely by default (max-cycles=0) instead of stopping at 1000 cycles
+- Infinite loops are now treated as expected behavior, not errors
+- Display updates happen in real-time as the ROM executes, not just at completion
+- ASCII renderer uses more compact display format for continuous updates
+- Default cycle delay reduced from 100ms to 16ms for smoother animation
+
+### Removed
+
+- Artificial infinite loop detection that incorrectly treated normal CHIP-8 behavior as bugs
+- Static display rendering (display now updates continuously during execution)
+
 ## [0.1.3] - 2025-09-13
 
 ### Added
