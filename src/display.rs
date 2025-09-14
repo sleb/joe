@@ -60,6 +60,15 @@ pub trait DisplayBus {
 pub trait Renderer {
     /// Render the current state of a display
     fn render(&self, display: &dyn DisplayBus);
+
+    /// Get the character width of each pixel for this renderer
+    fn pixel_width(&self) -> usize;
+
+    /// Get the character representation for an "on" pixel
+    fn pixel_on_char(&self) -> &str;
+
+    /// Get the character representation for an "off" pixel
+    fn pixel_off_char(&self) -> &str;
 }
 
 /// CHIP-8 Display implementation with 64x32 framebuffer
@@ -179,19 +188,38 @@ pub struct AsciiRenderer;
 
 impl Renderer for AsciiRenderer {
     fn render(&self, display: &dyn DisplayBus) {
-        // Use a more compact border for continuous updates
-        println!("┌{}┐", "─".repeat(DISPLAY_WIDTH));
+        let border_width = DISPLAY_WIDTH * self.pixel_width();
+        println!("┌{}┐", "─".repeat(border_width));
 
         for y in 0..DISPLAY_HEIGHT {
             print!("│");
             for x in 0..DISPLAY_WIDTH {
                 let pixel = display.get_pixel(x, y);
-                print!("{}", if pixel { "█" } else { " " });
+                print!(
+                    "{}",
+                    if pixel {
+                        self.pixel_on_char()
+                    } else {
+                        self.pixel_off_char()
+                    }
+                );
             }
             println!("│");
         }
 
-        println!("└{}┘", "─".repeat(DISPLAY_WIDTH));
+        println!("└{}┘", "─".repeat(border_width));
+    }
+
+    fn pixel_width(&self) -> usize {
+        2 // Double-wide characters
+    }
+
+    fn pixel_on_char(&self) -> &str {
+        "██"
+    }
+
+    fn pixel_off_char(&self) -> &str {
+        "  "
     }
 }
 
@@ -200,7 +228,19 @@ pub struct HeadlessRenderer;
 
 impl Renderer for HeadlessRenderer {
     fn render(&self, _display: &dyn DisplayBus) {
-        // No output - useful for testing and benchmarking
+        // No output - used for testing
+    }
+
+    fn pixel_width(&self) -> usize {
+        0 // No visual output
+    }
+
+    fn pixel_on_char(&self) -> &str {
+        ""
+    }
+
+    fn pixel_off_char(&self) -> &str {
+        ""
     }
 }
 
@@ -424,5 +464,21 @@ mod tests {
         for renderer in renderers {
             renderer.render(&display); // Should not panic
         }
+    }
+
+    #[test]
+    fn test_pixel_width() {
+        let ascii_renderer = AsciiRenderer;
+        let headless_renderer = HeadlessRenderer;
+
+        // ASCII renderer uses double-wide characters
+        assert_eq!(ascii_renderer.pixel_width(), 2);
+        assert_eq!(ascii_renderer.pixel_on_char(), "██");
+        assert_eq!(ascii_renderer.pixel_off_char(), "  ");
+
+        // Headless renderer has no visual output
+        assert_eq!(headless_renderer.pixel_width(), 0);
+        assert_eq!(headless_renderer.pixel_on_char(), "");
+        assert_eq!(headless_renderer.pixel_off_char(), "");
     }
 }
