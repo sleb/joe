@@ -176,7 +176,9 @@ impl RunCommand {
     ) {
         println!("\nEmulation completed after {} cycles", cycles);
 
-        if !self.headless {
+        // Only show final display if we're in final-only mode (user hasn't seen it yet)
+        // In continuous mode, the final display is already visible above
+        if !self.headless && self.final_only {
             println!("\nFinal Display Output:");
             println!("{}", "=".repeat(70));
             renderer.render(display);
