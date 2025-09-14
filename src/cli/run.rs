@@ -1,6 +1,8 @@
 use clap::Parser;
 use octo::{AsciiRenderer, Cpu, Display, Memory, Renderer};
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 #[derive(Parser)]
@@ -86,6 +88,14 @@ impl RunCommand {
         }
         println!("Press Ctrl+C to stop\n");
 
+        // Set up Ctrl+C handler
+        let running = Arc::new(AtomicBool::new(true));
+        let r = running.clone();
+        ctrlc::set_handler(move || {
+            r.store(false, Ordering::SeqCst);
+        })
+        .expect("Error setting Ctrl+C handler");
+
         let mut cycles = 0;
         let cycle_delay = Duration::from_millis(self.cycle_delay_ms);
         let mut last_display_hash = 0u64;
@@ -93,6 +103,11 @@ impl RunCommand {
         let min_render_interval = Duration::from_millis(100); // Max 10 FPS for display updates
 
         loop {
+            // Check if user pressed Ctrl+C
+            if !running.load(Ordering::SeqCst) {
+                println!("\nReceived Ctrl+C, stopping...");
+                break;
+            }
             cycles += 1;
 
             if self.verbose {
@@ -146,13 +161,25 @@ impl RunCommand {
             }
         }
 
-        // Show final results
+        // Show final results and statistics
+        self.show_final_statistics(cycles, &cpu, &display, renderer.as_ref());
+        Ok(())
+    }
+
+    /// Show final statistics and display state
+    fn show_final_statistics(
+        &self,
+        cycles: usize,
+        cpu: &Cpu,
+        display: &Display,
+        renderer: &dyn Renderer,
+    ) {
         println!("\nEmulation completed after {} cycles", cycles);
 
         if !self.headless {
             println!("\nFinal Display Output:");
             println!("{}", "=".repeat(70));
-            renderer.render(&display);
+            renderer.render(display);
             println!("{}", "=".repeat(70));
         }
 
@@ -192,6 +219,45 @@ impl RunCommand {
         }
 
         println!("\nROM execution complete!");
-        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[test]
+    fn test_signal_handler_setup() {
+        // Test that we can create and use AtomicBool for signal handling
+        let running = Arc::new(AtomicBool::new(true));
+        let r = running.clone();
+
+        // Simulate signal handler behavior
+        assert!(running.load(Ordering::SeqCst));
+        r.store(false, Ordering::SeqCst);
+        assert!(!running.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn test_run_command_creation() {
+        // Test that RunCommand can be created with default values
+        use std::path::PathBuf;
+
+        let cmd = RunCommand {
+            rom_file: PathBuf::from("test.ch8"),
+            max_cycles: 100,
+            cycle_delay_ms: 16,
+            verbose: false,
+            headless: true,
+            final_only: false,
+        };
+
+        assert_eq!(cmd.max_cycles, 100);
+        assert_eq!(cmd.cycle_delay_ms, 16);
+        assert!(!cmd.verbose);
+        assert!(cmd.headless);
+        assert!(!cmd.final_only);
     }
 }

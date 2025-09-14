@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--final-only` flag to show only the final display state instead of continuous updates
 - Improved cycle delay defaults (16ms ≈ 60fps) for smooth real-time display
 - Support for unlimited execution (removed artificial infinite loop detection)
+- Graceful Ctrl+C handling that shows statistics and final display state before exiting
 
 ### Changed
 

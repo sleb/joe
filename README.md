@@ -127,7 +127,7 @@ To see the emulator in action with the IBM Logo ROM:
 octo run roms/ibm-logo.ch8
 ```
 
-You'll see the classic IBM logo being drawn in real-time with ASCII art in your terminal! The emulator shows continuous display updates as the ROM executes, just like a real CHIP-8 system. Use `Ctrl+C` to stop execution.
+You'll see the classic IBM logo being drawn in real-time with ASCII art in your terminal! The emulator shows continuous display updates as the ROM executes, just like a real CHIP-8 system. Use `Ctrl+C` to stop execution and see statistics.
 
 ## Examples
 
@@ -138,6 +138,7 @@ You'll see the classic IBM logo being drawn in real-time with ASCII art in your 
 octo run roms/ibm-logo.ch8
 
 # Run with slower updates to see the logo being drawn step by step
+# Press Ctrl+C anytime to stop and see statistics
 octo run roms/ibm-logo.ch8 --cycle-delay-ms 500
 
 # Run with verbose output showing CPU state each cycle
