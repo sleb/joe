@@ -1,6 +1,8 @@
 # JOE - CHIP-8 Emulator
 
-A CHIP-8 emulator written in Rust as a learning project to explore low-level programming, emulation concepts, and Rust systems programming. Named **JOE** in tribute to **Joseph Weisbecker**, who created CHIP-8 at RCA in 1977.
+A CHIP-8 emulator written in Rust as a learning project to explore low-level programming, emulation concepts, and Rust systems programming.
+
+> **📢 Important**: This project was recently renamed from `octo` to `joe` to avoid conflicts with the existing [Octo IDE](https://github.com/JohnEarnest/Octo). See [Migration Guide](#migration-from-octo) below.
 
 ## Project Overview
 
@@ -25,7 +27,7 @@ Try it yourself: `joe run roms/ibm-logo.ch8`
 
 ```bash
 # Install the latest release from GitHub
-cargo install --git https://github.com/sleb/joe --tag v0.1.5
+cargo install --git https://github.com/sleb/joe --tag v0.2.0
 
 # Verify installation
 joe version
@@ -35,11 +37,11 @@ joe version
 
 ```bash
 # Update to the latest release
-cargo install --git https://github.com/sleb/joe --tag v0.1.5 --force
+cargo install --git https://github.com/sleb/joe --tag v0.2.0 --force
 
 # Or uninstall and reinstall
 cargo uninstall joe
-cargo install --git https://github.com/sleb/joe --tag v0.1.5
+cargo install --git https://github.com/sleb/joe --tag v0.2.0
 ```
 
 ### From Specific Version
@@ -63,7 +65,7 @@ cargo install --path .
 joe version
 ```
 
-> **Note:** Check the [releases page](https://github.com/sleb/joe/releases) for the latest version number and replace `v0.1.3` in the commands above with the newest release tag.
+> **Note:** Check the [releases page](https://github.com/sleb/joe/releases) for the latest version number and replace version tags in the commands above with the newest release.
 
 ### Prerequisites
 
@@ -71,6 +73,24 @@ joe version
 - Git (for installation from GitHub)
 
 > **✅ Robust Installation:** The build system automatically handles both git-enabled and git-free environments. When installing via `cargo install --git`, the emulator gracefully falls back to standard versioning if git metadata isn't available, ensuring installation always succeeds.
+
+## Migration from `octo`
+
+If you previously installed this emulator as `octo`, you'll need to migrate to the new `joe` name:
+
+```bash
+# 1. Uninstall the old version
+cargo uninstall octo
+
+# 2. Install the new version
+cargo install --git https://github.com/sleb/joe --tag v0.2.0
+
+# 3. Update any scripts or aliases
+# Old: octo run rom.ch8
+# New: joe run rom.ch8
+```
+
+**Why the rename?** We discovered an existing, well-established CHIP-8 project called [Octo](https://github.com/JohnEarnest/Octo) by John Earnest. To avoid confusion, we renamed our project to **JOE**.
 
 ### Goals
 
@@ -231,7 +251,7 @@ joe analyze roms/ibm-logo.ch8
 
 ## Current Status & Next Steps
 
-### ✅ **Completed: Core CHIP-8 Emulator (v0.1.3+)**
+### ✅ **Completed: Core CHIP-8 Emulator (v0.2.0+)**
 
 **What Works Now:**
 
@@ -660,6 +680,10 @@ This is primarily a learning project, but suggestions and improvements are welco
 ## Release History
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed release notes and version history.
+
+## Why `joe`?
+
+The name **JOE** is a tribute to **Joseph Weisbecker**, who created the CHIP-8 interpreted programming language at RCA in 1977 for the COSMAC VIP computer. We chose this name after discovering that our original name `octo` conflicted with the existing [Octo CHIP-8 IDE](https://github.com/JohnEarnest/Octo) by John Earnest. Rather than pick an arbitrary name, we decided to honor the original creator of the system we're emulating.
 
 ## License
 

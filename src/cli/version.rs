@@ -23,10 +23,7 @@ impl VersionCommand {
     }
 
     fn print_detailed_version(&self) {
-        println!(
-            "{} - CHIP-8 Emulator (tribute to Joseph Weisbecker)",
-            env!("CARGO_PKG_NAME")
-        );
+        println!("{} - CHIP-8 Emulator", env!("CARGO_PKG_NAME"));
         println!("Version: {}", env!("BUILD_VERSION"));
 
         let is_release = env!("BUILD_IS_RELEASE") == "true";

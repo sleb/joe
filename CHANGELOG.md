@@ -7,18 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-09-14
+
+**🚨 BREAKING CHANGES - Migration Required**
+
+This release contains significant breaking changes due to a project rename. See the [Migration Guide](README.md#migration-from-octo) for upgrade instructions.
+
 ### Changed
 
-- **BREAKING**: Project renamed from `octo` to `joe` in tribute to Joseph Weisbecker (CHIP-8's creator)
-- Updated all command references: `octo run` → `joe run`, `octo analyze` → `joe analyze`, etc.
-- Repository moved from `github.com/sleb/octo` to `github.com/sleb/joe`
-- Package name changed from `octo` to `joe` in Cargo.toml
+- **BREAKING**: Project renamed from `octo` to `joe` to avoid conflicts with existing Octo CHIP-8 IDE
+- **BREAKING**: Binary name changed: `octo` → `joe`
+- **BREAKING**: All CLI commands changed: `octo run` → `joe run`, `octo analyze` → `joe analyze`, etc.
+- **BREAKING**: Repository moved from `github.com/sleb/octo` to `github.com/sleb/joe`
+- **BREAKING**: Package name changed from `octo` to `joe` in Cargo.toml
+- Updated project descriptions and documentation
+- Updated all documentation, examples, and installation instructions
 
 ### Fixed
 
 - Build script now gracefully falls back to Cargo.toml version when git versioning isn't available
 - Resolves installation failures when using `cargo install --git` in environments with limited git metadata
 - Maintains rich git version information for development builds while ensuring robust installation process
+
+### Migration Required
+
+Existing users must uninstall the old version and reinstall:
+
+```bash
+# 1. Uninstall old version
+cargo uninstall octo
+
+# 2. Install new version
+cargo install --git https://github.com/sleb/joe --tag v0.2.0
+
+# 3. Update scripts: octo run → joe run
+```
+
+**Reason for rename**: Discovered existing [Octo CHIP-8 IDE](https://github.com/JohnEarnest/Octo) by John Earnest. Chose `joe` to avoid confusion while honoring CHIP-8's history.
 
 ## [0.1.5] - 2025-09-13
 
