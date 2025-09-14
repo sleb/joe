@@ -59,7 +59,7 @@
 //!
 //! - ✅ Authentic CHIP-8 instruction set (core instructions implemented)
 //! - ✅ 64x32 monochrome display with XOR sprite drawing and collision detection
-//! - ✅ ROM loading with size validation and error handling
+//! - ✅ ROM loading from local files and remote URLs with size validation and error handling
 //! - ✅ Memory write protection (configurable)
 //! - ✅ ASCII terminal rendering for development
 //! - ✅ Trait-based architecture for extensible rendering backends
@@ -73,6 +73,7 @@ pub mod disassembler;
 pub mod display;
 pub mod instruction;
 pub mod memory;
+pub mod rom_loader;
 // pub mod input;
 // pub mod audio;
 // pub mod emulator;
@@ -87,6 +88,7 @@ pub use display::{
 };
 pub use instruction::{DecodeError, Instruction, decode_opcode};
 pub use memory::{Memory, MemoryBus, MemoryError, MemoryStats};
+pub use rom_loader::{RomLoaderConfig, RomSource, load_rom_data, load_rom_data_with_config};
 // pub use emulator::{Emulator, EmulatorError};
 
 /// Result type alias using anyhow for convenience

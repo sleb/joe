@@ -1,15 +1,17 @@
 use clap::Parser;
-use joe::{AsciiRenderer, Cpu, Display, Memory, Renderer};
-use std::path::PathBuf;
+use joe::{AsciiRenderer, Cpu, Display, Memory, Renderer, RomSource, load_rom_data};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 #[derive(Parser)]
 pub struct RunCommand {
-    /// Path to the ROM file to run
-    #[arg(value_name = "ROM_FILE")]
-    pub rom_file: PathBuf,
+    /// Path to the ROM file to run, or HTTP(S) URL to download ROM from
+    /// Examples:
+    ///   - Local file: roms/game.ch8
+    ///   - Remote URL: https://example.com/rom.ch8
+    #[arg(value_name = "ROM_SOURCE")]
+    pub rom_source: String,
 
     /// Maximum number of CPU cycles to execute (0 = unlimited)
     #[arg(short = 'c', long, default_value = "0")]
@@ -37,18 +39,25 @@ impl RunCommand {
         println!("CHIP-8 Emulator - Running ROM");
         println!("==============================");
 
-        // Check if ROM file exists
-        if !self.rom_file.exists() {
-            anyhow::bail!("ROM file '{}' not found", self.rom_file.display());
+        // Detect source type and load ROM data
+        let source = RomSource::from_string(&self.rom_source);
+
+        println!(
+            "Loading ROM from {}: {}",
+            if source.is_url() { "URL" } else { "file" },
+            source.description()
+        );
+
+        if source.is_url() {
+            println!("Downloading ROM from remote server...");
         }
 
-        // Load ROM file
-        let rom_data = std::fs::read(&self.rom_file)
-            .map_err(|e| anyhow::anyhow!("Failed to read ROM file: {}", e))?;
+        // Load ROM data (from file or URL)
+        let rom_data = load_rom_data(&self.rom_source)?;
 
         println!(
             "Loaded ROM: {} ({} bytes)",
-            self.rom_file.display(),
+            source.description(),
             rom_data.len()
         );
 
@@ -245,10 +254,8 @@ mod tests {
     #[test]
     fn test_run_command_creation() {
         // Test that RunCommand can be created with default values
-        use std::path::PathBuf;
-
         let cmd = RunCommand {
-            rom_file: PathBuf::from("test.ch8"),
+            rom_source: "test.ch8".to_string(),
             max_cycles: 100,
             cycle_delay_ms: 16,
             verbose: false,

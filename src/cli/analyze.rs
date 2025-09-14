@@ -1,12 +1,17 @@
 use clap::Parser;
-use joe::{Memory, Result, analyze_instruction_usage, disassemble_rom, print_disassembly};
-use std::path::PathBuf;
+use joe::{
+    Memory, Result, RomSource, analyze_instruction_usage, disassemble_rom, load_rom_data,
+    print_disassembly,
+};
 
 #[derive(Parser)]
 pub struct AnalyzeCommand {
-    /// Path to the ROM file to analyze
-    #[arg(value_name = "ROM_FILE")]
-    pub rom_file: PathBuf,
+    /// Path to the ROM file to analyze, or HTTP(S) URL to download ROM from
+    /// Examples:
+    ///   - Local file: roms/game.ch8
+    ///   - Remote URL: https://example.com/rom.ch8
+    #[arg(value_name = "ROM_SOURCE")]
+    pub rom_source: String,
 
     /// Show detailed disassembly (default: summary only)
     #[arg(short, long)]
@@ -19,16 +24,23 @@ pub struct AnalyzeCommand {
 
 impl AnalyzeCommand {
     pub fn execute(self, disable_write_protection: bool) -> Result<()> {
-        // Load ROM file
-        let rom_data = std::fs::read(&self.rom_file).map_err(|e| {
-            anyhow::anyhow!(
-                "Failed to read ROM file '{}': {}",
-                self.rom_file.display(),
-                e
-            )
-        })?;
+        // Detect source type and load ROM data
+        let source = RomSource::from_string(&self.rom_source);
 
-        println!("Analyzing ROM: {}", self.rom_file.display());
+        println!(
+            "Loading ROM from {}: {}",
+            if source.is_url() { "URL" } else { "file" },
+            source.description()
+        );
+
+        if source.is_url() {
+            println!("Downloading ROM from remote server...");
+        }
+
+        // Load ROM data (from file or URL)
+        let rom_data = load_rom_data(&self.rom_source)?;
+
+        println!("Analyzing ROM: {}", source.description());
         println!("ROM size: {} bytes", rom_data.len());
 
         // Create memory and load ROM

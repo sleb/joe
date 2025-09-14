@@ -165,38 +165,62 @@ You'll see the classic IBM logo being drawn in real-time with ASCII art in your 
 ### Running ROMs
 
 ```bash
-# Run the IBM Logo ROM with default settings (continuous display updates)
-joe run roms/ibm-logo.ch8
+# Run ROM with default settings (continuous display updates)
+joe run <ROM>
 
 # Run with slower updates to see the logo being drawn step by step
 # Press Ctrl+C anytime to stop and see statistics
-joe run roms/ibm-logo.ch8 --cycle-delay-ms 500
+joe run <ROM> --cycle-delay-ms 500
 
 # Run with verbose output showing CPU state each cycle
-joe run roms/ibm-logo.ch8 --verbose
+joe run <ROM> --verbose
 
 # Show only the final display state (no continuous updates)
-joe run roms/ibm-logo.ch8 --final-only
+joe run <ROM> --final-only
 
 # Run in headless mode (no display output, useful for testing)
-joe run roms/ibm-logo.ch8 --headless
+joe run <ROM> --headless
 
 # Set maximum cycles (0 = unlimited, programs can run indefinitely)
-joe run roms/ibm-logo.ch8 --max-cycles 100
+joe run <ROM> --max-cycles 100
 
 # Fast execution with final display only
-joe run roms/ibm-logo.ch8 --cycle-delay-ms 0 --final-only
+joe run <ROM> --cycle-delay-ms 0 --final-only
 ```
 
 ### Analyzing ROMs
 
 ```bash
 # Show disassembly and instruction analysis
-joe analyze roms/ibm-logo.ch8 --disassemble --stats
+joe analyze <ROM> --disassemble --stats
 
 # Quick analysis (shows what instructions are needed)
-joe analyze roms/ibm-logo.ch8
+joe analyze <ROM>
 ```
+
+### ROM Sources
+
+The `<ROM>` parameter accepts either local file paths or remote URLs:
+
+```bash
+# Local file examples
+joe run roms/ibm-logo.ch8
+joe run /path/to/game.ch8
+joe run ./relative/path/rom.ch8
+
+# Remote URL examples
+joe run https://github.com/Timendus/chip8-test-suite/raw/main/bin/2-ibm-logo.ch8
+joe run https://example.com/games/tetris.ch8
+joe analyze https://retro-games.org/roms/pong.ch8
+```
+
+**Features:**
+
+- Automatic detection of file paths vs URLs
+- Downloads are cached temporarily during execution
+- 30-second timeout for network requests
+- Clear error messages for network failures
+- Same ROM size limits apply (max 3584 bytes)
 
 ## Project Architecture
 
