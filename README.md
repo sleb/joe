@@ -17,7 +17,28 @@ We can now execute the IBM Logo ROM, demonstrating:
 - ✅ Memory management with ROM loading
 - ✅ ASCII terminal rendering for development
 
-Try it yourself: `cargo run -- run roms/ibm-logo.ch8`
+Try it yourself: `octo run roms/ibm-logo.ch8`
+
+## Installation
+
+### From Source
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd octo
+
+# Install the binary
+cargo install --path .
+
+# Verify installation
+octo version
+```
+
+### Prerequisites
+
+- [Rust](https://rustup.rs/) (latest stable version)
+- Git for cloning the repository
 
 ### Goals
 
@@ -72,10 +93,8 @@ Try it yourself: `cargo run -- run roms/ibm-logo.ch8`
 To see the emulator in action with the IBM Logo ROM:
 
 ```bash
-# Clone and run the IBM logo ROM
-git clone <repository-url>
-cd octo
-cargo run -- run roms/ibm-logo.ch8
+# After installation (see Installation section above)
+octo run roms/ibm-logo.ch8
 ```
 
 You should see the classic IBM logo rendered in ASCII art in your terminal!
@@ -86,29 +105,29 @@ You should see the classic IBM logo rendered in ASCII art in your terminal!
 
 ```bash
 # Run the IBM Logo ROM with default settings
-cargo run -- run roms/ibm-logo.ch8
+octo run roms/ibm-logo.ch8
 
 # Run with verbose output showing CPU state each cycle
-cargo run -- run roms/ibm-logo.ch8 --verbose
+octo run roms/ibm-logo.ch8 --verbose
 
 # Run faster (no delay between cycles)
-cargo run -- run roms/ibm-logo.ch8 --cycle-delay-ms 0
+octo run roms/ibm-logo.ch8 --cycle-delay-ms 0
 
 # Run in headless mode (no display output, useful for testing)
-cargo run -- run roms/ibm-logo.ch8 --headless
+octo run roms/ibm-logo.ch8 --headless
 
 # Set maximum cycles to prevent runaway programs
-cargo run -- run roms/ibm-logo.ch8 --max-cycles 500
+octo run roms/ibm-logo.ch8 --max-cycles 500
 ```
 
 ### Analyzing ROMs
 
 ```bash
 # Show disassembly and instruction analysis
-cargo run -- analyze roms/ibm-logo.ch8 --disassemble --stats
+octo analyze roms/ibm-logo.ch8 --disassemble --stats
 
 # Quick analysis (shows what instructions are needed)
-cargo run -- analyze roms/ibm-logo.ch8
+octo analyze roms/ibm-logo.ch8
 ```
 
 ## Project Architecture
@@ -448,10 +467,31 @@ just release major    # 0.6.0 -> 1.0.0
 
 The build script automatically detects version mismatches and provides helpful warnings during development.
 
-## Building and Running
+## Using the Emulator
+
+Once installed, use these commands:
 
 ```bash
-# Quick development commands
+# Run CHIP-8 ROMs
+octo run roms/ibm-logo.ch8
+octo run rom-file.ch8 --verbose
+octo run rom-file.ch8 --headless --cycle-delay-ms 0
+
+# Analyze ROMs
+octo analyze roms/ibm-logo.ch8
+octo analyze rom-file.ch8 --disassemble
+
+# System information
+octo version
+octo --help
+```
+
+## Development
+
+For developers working on the emulator:
+
+```bash
+# Development commands
 just build              # Build the project
 just test               # Run tests
 just check              # Run all checks (fmt, lint, test)
@@ -459,11 +499,10 @@ just version            # Show version info
 
 # Traditional cargo commands
 cargo build
-cargo run -- version
 cargo test
 cargo build --release
 
-# Run ROMs
+# Run during development (without installing)
 cargo run -- run roms/ibm-logo.ch8
 cargo run -- analyze roms/ibm-logo.ch8 --disassemble
 ```
