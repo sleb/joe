@@ -94,8 +94,11 @@ release TYPE:
     sed -i.bak "s/^version = .*/version = \"$NEW_VERSION\"/" Cargo.toml
     rm Cargo.toml.bak
 
+    # Update README.md with new version
+    just update-readme-version $NEW_VERSION
+
     # Commit and tag
-    git add Cargo.toml
+    git add Cargo.toml README.md
     git commit -m "chore: bump version to $NEW_VERSION"
     git tag "v$NEW_VERSION"
 
@@ -106,6 +109,30 @@ release TYPE:
 # Usage: just run path/to/rom.ch8
 run ROM:
     cargo run -- run {{ROM}}
+
+# Update README.md with new version
+# Usage: just update-readme-version 0.1.4
+update-readme-version VERSION:
+    #!/bin/bash
+    set -euo pipefail
+
+    NEW_TAG="v{{VERSION}}"
+    echo "Updating README.md to use version $NEW_TAG"
+
+    # Use a simpler approach with targeted sed commands
+    # Update only the lines in "From Latest Release" and "Updating" sections
+
+    # Update the main installation command
+    sed -i.bak "/### From Latest Release/,/### Updating/ s/--tag v[0-9]*\.[0-9]*\.[0-9]*/--tag $NEW_TAG/g" README.md
+
+    # Update the updating section commands
+    sed -i.bak "/### Updating/,/### From Specific Version/ s/--tag v[0-9]*\.[0-9]*\.[0-9]*/--tag $NEW_TAG/g" README.md
+
+    # Clean up backup file
+    rm README.md.bak
+
+    echo "✅ README.md updated with version $NEW_TAG"
+    echo "📝 Note: The 'From Specific Version' example was left unchanged as intended"
 
 # Show git status and recent commits
 status:

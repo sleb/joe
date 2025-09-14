@@ -21,24 +21,54 @@ Try it yourself: `octo run roms/ibm-logo.ch8`
 
 ## Installation
 
-### From Source
+### From Latest Release (Recommended)
+
+```bash
+# Install the latest release from GitHub
+cargo install --git https://github.com/sleb/octo --tag v0.1.3
+
+# Verify installation
+octo version
+```
+
+### Updating
+
+```bash
+# Update to the latest release
+cargo install --git https://github.com/sleb/octo --tag v0.1.3 --force
+
+# Or uninstall and reinstall
+cargo uninstall octo
+cargo install --git https://github.com/sleb/octo --tag v0.1.3
+```
+
+### From Specific Version
+
+```bash
+# Install a specific version (replace v0.1.2 with desired version)
+cargo install --git https://github.com/sleb/octo --tag v0.1.2
+```
+
+### From Source (Development)
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/sleb/octo.git
 cd octo
 
-# Install the binary
+# Install the binary from source
 cargo install --path .
 
 # Verify installation
 octo version
 ```
 
+> **Note:** Check the [releases page](https://github.com/sleb/octo/releases) for the latest version number and replace `v0.1.3` in the commands above with the newest release tag.
+
 ### Prerequisites
 
 - [Rust](https://rustup.rs/) (latest stable version)
-- Git for cloning the repository
+- Git (for installation from GitHub)
 
 ### Goals
 
@@ -463,7 +493,8 @@ just release major    # 0.6.0 -> 1.0.0
 
 1. **Development**: Work normally, build script warns of any version issues
 2. **Release**: Use `just release TYPE` for automated version bump and tagging
-3. **Publishing**: `git push origin main --tags`
+3. **README Updates**: The release process automatically updates installation instructions with the new version
+4. **Publishing**: `git push origin main --tags`
 
 The build script automatically detects version mismatches and provides helpful warnings during development.
 
@@ -505,6 +536,9 @@ cargo build --release
 # Run during development (without installing)
 cargo run -- run roms/ibm-logo.ch8
 cargo run -- analyze roms/ibm-logo.ch8 --disassemble
+
+# README version management (for releases)
+just update-readme-version 0.1.4  # Update installation instructions
 ```
 
 ## Development Setup
