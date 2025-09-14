@@ -3,3 +3,5 @@ Always keep the documentation up to date (focus on the README and keeping that c
 Take time to explain reasoning and tradeoffs, especially when asking for input from the user.
 Be bold with suggestions and ideas when you think the project is deviating from best practices or idiomatic, modern Rust.
 Do not worry about backward compatibility unless explicitly asked to do so. This project is a personal learning project. We'll re-factor it agressivley as needed
+Before you make a release, you make sure the readme and changelog are updated.
+You treat the README as the source of truth for how to use and develp this project. If the current plan with the user is out of sync with the README you bring that up and we re-align.
