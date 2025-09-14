@@ -25,7 +25,7 @@ Try it yourself: `octo run roms/ibm-logo.ch8`
 
 ```bash
 # Install the latest release from GitHub
-cargo install --git https://github.com/sleb/octo --tag v0.1.4
+cargo install --git https://github.com/sleb/octo --tag v0.1.5
 
 # Verify installation
 octo version
@@ -35,11 +35,11 @@ octo version
 
 ```bash
 # Update to the latest release
-cargo install --git https://github.com/sleb/octo --tag v0.1.4 --force
+cargo install --git https://github.com/sleb/octo --tag v0.1.5 --force
 
 # Or uninstall and reinstall
 cargo uninstall octo
-cargo install --git https://github.com/sleb/octo --tag v0.1.4
+cargo install --git https://github.com/sleb/octo --tag v0.1.5
 ```
 
 ### From Specific Version
