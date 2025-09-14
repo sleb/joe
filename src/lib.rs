@@ -104,29 +104,5 @@ pub mod constants {
     pub const TIMER_FREQUENCY: u32 = 60;
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_memory_creation() {
-        let memory = Memory::new(true);
-        let stats = memory.get_stats();
-
-        assert_eq!(stats.total_size, constants::MEMORY_SIZE);
-        assert_eq!(stats.font_start, constants::FONT_START_ADDR);
-        assert_eq!(stats.program_start, constants::PROGRAM_START_ADDR);
-        assert!(stats.write_protection_enabled);
-    }
-
-    #[test]
-    fn test_constants_consistency() {
-        // Ensure our constants make sense
-        assert!(constants::FONT_START_ADDR < constants::PROGRAM_START_ADDR);
-        assert!(constants::PROGRAM_START_ADDR < constants::MEMORY_SIZE as u16);
-        assert!(constants::DISPLAY_WIDTH > 0);
-        assert!(constants::DISPLAY_HEIGHT > 0);
-        assert_eq!(constants::NUM_REGISTERS, 16);
-        assert_eq!(constants::NUM_KEYS, 16);
-    }
-}
+// No tests in lib.rs - unit tests are in individual modules,
+// integration tests are in tests/ directory
