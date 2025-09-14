@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved cycle delay defaults (16ms ≈ 60fps) for smooth real-time display
 - Support for unlimited execution (removed artificial infinite loop detection)
 - Graceful Ctrl+C handling that shows statistics and final display state before exiting
+- Eliminated magic numbers in ASCII renderer with configurable pixel width system
 
 ### Changed
 
@@ -23,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Display updates happen in real-time as the ROM executes, not just at completion
 - ASCII renderer uses more compact display format for continuous updates
 - Default cycle delay reduced from 100ms to 16ms for smoother animation
+- Updated project roadmap and architecture documentation to reflect current implementation status
+- Removed redundant final display output in continuous mode (display already visible above)
 
 ### Removed
 
