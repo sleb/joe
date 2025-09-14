@@ -486,17 +486,16 @@ A 0 B F       Z X C V
 - **GUI Interface** - Visual rendering with SDL/pixels integration
 - **Enhanced Tools** - Debugging features, save states, configuration
 - **ROM Compatibility** - Extensive testing with popular CHIP-8 games
-- **v1.0.0 Release** - Production-ready with stable API
+- **Production Release** - Stable API and package distribution
 
 ## Version History
 
-- **v0.2.0** (2025-09-14) - Project renamed to `joe`, robust installation fixed
+- **v0.2.0** (2025-09-14) - Project renamed to `joe`, robust installation system
 - **v0.1.5** (2025-09-13) - Real-time display updates, signal handling, enhanced UX
-- **v0.1.4** (2025-09-12) - Professional CLI commands, comprehensive options
-- **v0.1.3** (2025-09-11) - Display system complete, IBM Logo ROM working
-- **v0.1.2** (2025-09-10) - CPU instruction execution, core opcodes implemented
-- **v0.1.1** (2025-09-09) - Memory system, ROM loading, write protection
-- **v0.1.0** (2025-09-08) - Initial project structure, CLI foundation
+- **v0.1.3** (2025-09-13) - Display system complete, IBM Logo ROM working
+- **v0.1.2** (2025-09-13) - CPU instruction execution, core opcodes implemented
+- **v0.1.1** (2025-09-13) - Memory system, ROM loading, write protection
+- **v0.1.0** (2025-09-13) - Initial project structure, CLI foundation, git versioning
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 
