@@ -17,7 +17,7 @@ We can now execute the IBM Logo ROM, demonstrating:
 - ✅ Memory management with ROM loading
 - ✅ ASCII terminal rendering for development
 
-Try it yourself: `cargo run --example run_ibm_logo`
+Try it yourself: `cargo run -- run roms/ibm-logo.ch8`
 
 ### Goals
 
@@ -72,13 +72,44 @@ Try it yourself: `cargo run --example run_ibm_logo`
 To see the emulator in action with the IBM Logo ROM:
 
 ```bash
-# Clone and run the IBM logo example
+# Clone and run the IBM logo ROM
 git clone <repository-url>
 cd octo
-cargo run --example run_ibm_logo
+cargo run -- run roms/ibm-logo.ch8
 ```
 
 You should see the classic IBM logo rendered in ASCII art in your terminal!
+
+## Examples
+
+### Running ROMs
+
+```bash
+# Run the IBM Logo ROM with default settings
+cargo run -- run roms/ibm-logo.ch8
+
+# Run with verbose output showing CPU state each cycle
+cargo run -- run roms/ibm-logo.ch8 --verbose
+
+# Run faster (no delay between cycles)
+cargo run -- run roms/ibm-logo.ch8 --cycle-delay-ms 0
+
+# Run in headless mode (no display output, useful for testing)
+cargo run -- run roms/ibm-logo.ch8 --headless
+
+# Set maximum cycles to prevent runaway programs
+cargo run -- run roms/ibm-logo.ch8 --max-cycles 500
+```
+
+### Analyzing ROMs
+
+```bash
+# Show disassembly and instruction analysis
+cargo run -- analyze roms/ibm-logo.ch8 --disassemble --stats
+
+# Quick analysis (shows what instructions are needed)
+cargo run -- analyze roms/ibm-logo.ch8
+```
 
 ## Project Architecture
 
@@ -432,9 +463,9 @@ cargo run -- version
 cargo test
 cargo build --release
 
-# Run with a ROM file (when implemented)
-just run path/to/rom.ch8
-cargo run -- run path/to/rom.ch8
+# Run ROMs
+cargo run -- run roms/ibm-logo.ch8
+cargo run -- analyze roms/ibm-logo.ch8 --disassemble
 ```
 
 ## Development Setup

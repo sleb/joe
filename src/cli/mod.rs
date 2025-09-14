@@ -1,10 +1,12 @@
 mod analyze;
+mod run;
 mod version;
 
 use clap::{Parser, Subcommand};
 use octo::Result;
 
 pub use analyze::AnalyzeCommand;
+pub use run::RunCommand;
 pub use version::VersionCommand;
 
 #[derive(Parser)]
@@ -27,9 +29,9 @@ pub enum Commands {
     Version(VersionCommand),
     /// Analyze a ROM file and show disassembly
     Analyze(AnalyzeCommand),
+    /// Run a CHIP-8 ROM file
+    Run(RunCommand),
     // Future commands:
-    // /// Run a CHIP-8 ROM file
-    // Run(RunCommand),
     // /// Run a ROM with debugging features
     // Debug(DebugCommand),
     // /// Show information about a ROM file
@@ -52,6 +54,7 @@ impl Cli {
         match self.command {
             Commands::Version(cmd) => cmd.execute(),
             Commands::Analyze(cmd) => cmd.execute(self.disable_write_protection),
+            Commands::Run(cmd) => cmd.execute(self.disable_write_protection),
         }
     }
 }
