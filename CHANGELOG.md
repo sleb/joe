@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2025-09-13
+
+### Added
+
+- Complete display system with 64x32 framebuffer and XOR sprite drawing
+- Collision detection for sprite operations with proper CHIP-8 behavior
+- Coordinate wrapping at screen edges following CHIP-8 specification
+- ASCII terminal renderer for development and testing
+- Headless renderer for testing without output
+- Working CLS (clear screen) and DRW (draw sprite) instruction implementation
+- Successfully runs IBM Logo ROM demonstrating complete core functionality
+
+### Changed
+
+- Separated logical display operations from physical rendering concerns
+- Refactored display architecture with DisplayBus and Renderer traits
+- Updated CPU to integrate with display system for CLS and DRW instructions
+- Enhanced error handling for display operations with descriptive messages
+
+### Technical
+
+- Added DisplayBus trait for logical display operations (clear, draw_sprite, get/set pixel)
+- Added Renderer trait for presentation layer (ASCII, headless, future GUI)
+- Updated CPU execute_cycle to accept both memory and display parameters
+- Added comprehensive display tests covering XOR logic, collision detection, and coordinate wrapping
+- Created working example program that runs IBM Logo ROM with ASCII output
+
+### Architectural
+
+- Established display/renderer separation contract in documentation
+- Added trait-based architecture enabling multiple rendering backends
+- Maintained clean separation between "what to display" and "how to display it"
+- Future-proofed design for GUI renderers without changing display logic
+
 ## [0.1.2] - 2025-09-13
 
 ### Added
@@ -86,7 +120,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Created chrono-based build timestamp generation
 - Set up automatic git hash, branch, and dirty status detection
 
-[Unreleased]: https://github.com/username/octo/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/username/octo/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/username/octo/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/username/octo/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/username/octo/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/username/octo/releases/tag/v0.1.0

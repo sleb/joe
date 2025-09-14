@@ -4,6 +4,7 @@
 //! state including registers, program counter, stack, and timers.
 
 use crate::constants::*;
+use crate::display::{DisplayBus, DisplayError};
 use crate::instruction::{DecodeError, Instruction, decode_opcode};
 use crate::memory::{MemoryBus, MemoryError};
 use thiserror::Error;
@@ -16,6 +17,9 @@ pub enum CpuError {
 
     #[error("Instruction decode error: {0}")]
     Decode(#[from] DecodeError),
+
+    #[error("Display error: {0}")]
+    Display(#[from] DisplayError),
 
     #[error("Stack overflow - cannot push more than {max_depth} levels")]
     StackOverflow { max_depth: usize },
@@ -89,7 +93,11 @@ impl Cpu {
     }
 
     /// Execute one CPU cycle: fetch, decode, and execute one instruction
-    pub fn execute_cycle<M: MemoryBus>(&mut self, memory: &mut M) -> Result<(), CpuError> {
+    pub fn execute_cycle<M: MemoryBus, D: DisplayBus>(
+        &mut self,
+        memory: &mut M,
+        display: &mut D,
+    ) -> Result<(), CpuError> {
         // Keep instruction location local for error reporting
         let instruction_addr = self.pc;
 
@@ -97,13 +105,12 @@ impl Cpu {
         let instruction = self.fetch_instruction(memory)?;
 
         // Execute instruction - if it fails, wrap error with location info
-        self.execute_instruction(instruction).map_err(|err| {
-            CpuError::InstructionExecutionFailed {
+        self.execute_instruction(instruction, memory, display)
+            .map_err(|err| CpuError::InstructionExecutionFailed {
                 instruction,
                 addr: instruction_addr,
                 source: Box::new(err),
-            }
-        })?;
+            })?;
 
         Ok(())
     }
@@ -139,14 +146,19 @@ impl Cpu {
     }
 
     /// Decode and execute an instruction
-    fn execute_instruction(&mut self, opcode: u16) -> Result<(), CpuError> {
+    fn execute_instruction<M: MemoryBus, D: DisplayBus>(
+        &mut self,
+        opcode: u16,
+        memory: &mut M,
+        display: &mut D,
+    ) -> Result<(), CpuError> {
         // Decode the instruction using centralized decoding
         let instruction = decode_opcode(opcode)?;
 
         // Execute based on the decoded instruction
         match instruction {
             Instruction::Cls => {
-                // TODO: Implement when display module is ready
+                display.clear();
                 Ok(())
             }
             Instruction::Ret => self.return_from_subroutine(),
@@ -243,9 +255,21 @@ impl Cpu {
                 self.v[vx] <<= 1;
                 Ok(())
             }
-            Instruction::Draw { vx: _, vy: _, n: _ } => {
-                // TODO: Implement when display module is ready
-                self.v[0xF] = 0; // No collision for now
+            Instruction::Draw { vx, vy, n } => {
+                // Get coordinates from registers
+                let x = self.v[vx];
+                let y = self.v[vy];
+
+                // Read sprite data from memory starting at I register
+                let mut sprite_data = Vec::new();
+                for i in 0..n {
+                    let byte = memory.read_byte(self.i + i as u16)?;
+                    sprite_data.push(byte);
+                }
+
+                // Draw sprite and get collision flag
+                let collision = display.draw_sprite(x, y, &sprite_data)?;
+                self.v[0xF] = if collision { 1 } else { 0 };
                 Ok(())
             }
             Instruction::SkipKeyPressed { .. } => {
@@ -283,8 +307,8 @@ impl Cpu {
                 Ok(())
             }
             Instruction::LoadFont { vx } => {
-                // Font sprites are stored starting at 0x50, each is 5 bytes
-                self.i = 0x50 + (self.v[vx] as u16 * 5);
+                // Font sprites are stored starting at FONT_START_ADDR, each is 5 bytes
+                self.i = FONT_START_ADDR + (self.v[vx] as u16 * 5);
                 Ok(())
             }
             Instruction::StoreBcd { .. } => {
@@ -444,11 +468,12 @@ mod tests {
     fn test_load_instruction() {
         let mut cpu = Cpu::new();
         let mut memory = Memory::new(false);
+        let mut display = crate::display::Display::new();
 
         // LD V3, 0x42 (instruction: 0x6342)
         memory.write_word(PROGRAM_START_ADDR, 0x6342).unwrap();
 
-        cpu.execute_cycle(&mut memory).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display).unwrap();
 
         assert_eq!(cpu.get_register(3).unwrap(), 0x42);
         assert_eq!(cpu.get_pc(), PROGRAM_START_ADDR + 2);
@@ -458,6 +483,7 @@ mod tests {
     fn test_add_instruction() {
         let mut cpu = Cpu::new();
         let mut memory = Memory::new(false);
+        let mut display = crate::display::Display::new();
 
         // Set V2 = 0x10
         cpu.set_register(2, 0x10).unwrap();
@@ -465,7 +491,7 @@ mod tests {
         // ADD V2, 0x25 (instruction: 0x7225)
         memory.write_word(PROGRAM_START_ADDR, 0x7225).unwrap();
 
-        cpu.execute_cycle(&mut memory).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display).unwrap();
 
         assert_eq!(cpu.get_register(2).unwrap(), 0x35);
     }
@@ -474,11 +500,12 @@ mod tests {
     fn test_jump_instruction() {
         let mut cpu = Cpu::new();
         let mut memory = Memory::new(false);
+        let mut display = crate::display::Display::new();
 
         // JP 0x300 (instruction: 0x1300)
         memory.write_word(PROGRAM_START_ADDR, 0x1300).unwrap();
 
-        cpu.execute_cycle(&mut memory).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display).unwrap();
 
         assert_eq!(cpu.get_pc(), 0x300);
     }
@@ -487,11 +514,12 @@ mod tests {
     fn test_call_and_return() {
         let mut cpu = Cpu::new();
         let mut memory = Memory::new(false);
+        let mut display = crate::display::Display::new();
 
         // CALL 0x300 (instruction: 0x2300)
         memory.write_word(PROGRAM_START_ADDR, 0x2300).unwrap();
 
-        cpu.execute_cycle(&mut memory).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display).unwrap();
 
         // Should jump to 0x300 and push return address
         assert_eq!(cpu.get_pc(), 0x300);
@@ -510,11 +538,12 @@ mod tests {
     fn test_set_index_instruction() {
         let mut cpu = Cpu::new();
         let mut memory = Memory::new(false);
+        let mut display = crate::display::Display::new();
 
         // LD I, 0x300 (instruction: 0xA300)
         memory.write_word(PROGRAM_START_ADDR, 0xA300).unwrap();
 
-        cpu.execute_cycle(&mut memory).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display).unwrap();
 
         assert_eq!(cpu.get_index(), 0x300);
     }
@@ -543,16 +572,104 @@ mod tests {
     fn test_unknown_instruction() {
         let mut cpu = Cpu::new();
         let mut memory = Memory::new(false);
+        let mut display = crate::display::Display::new();
 
         // Write an unknown instruction at program start
         memory.write_word(PROGRAM_START_ADDR, 0xF123).unwrap();
 
-        let result = cpu.execute_cycle(&mut memory);
+        let result = cpu.execute_cycle(&mut memory, &mut display);
 
         // Should fail with execution error
         assert!(result.is_err());
 
         // PC should still have advanced (part of fetch contract)
         assert_eq!(cpu.get_pc(), PROGRAM_START_ADDR + 2);
+    }
+
+    #[test]
+    fn test_cls_instruction() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(false);
+        let mut display = crate::display::Display::new();
+
+        // Set some pixels manually to verify they get cleared
+        display.set_pixel(10, 5, true);
+        display.set_pixel(20, 15, true);
+        assert!(display.get_pixel(10, 5));
+        assert!(display.get_pixel(20, 15));
+
+        // CLS instruction (0x00E0)
+        memory.write_word(PROGRAM_START_ADDR, 0x00E0).unwrap();
+
+        cpu.execute_cycle(&mut memory, &mut display).unwrap();
+
+        // All pixels should be cleared
+        assert!(!display.get_pixel(10, 5));
+        assert!(!display.get_pixel(20, 15));
+        assert_eq!(display.get_stats().pixels_on, 0);
+    }
+
+    #[test]
+    fn test_draw_instruction() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(false);
+        let mut display = crate::display::Display::new();
+
+        // Set up sprite data in memory
+        let sprite_addr = 0x300;
+        let sprite_data = [0b11110000, 0b10010000]; // 4x2 rectangle
+        memory.write_byte(sprite_addr, sprite_data[0]).unwrap();
+        memory.write_byte(sprite_addr + 1, sprite_data[1]).unwrap();
+
+        // Set up CPU state for drawing
+        cpu.set_register(0, 10).unwrap(); // X coordinate
+        cpu.set_register(1, 5).unwrap(); // Y coordinate
+        cpu.i = sprite_addr;
+
+        // DRW V0, V1, 2 (instruction: 0xD012)
+        memory.write_word(PROGRAM_START_ADDR, 0xD012).unwrap();
+
+        cpu.execute_cycle(&mut memory, &mut display).unwrap();
+
+        // Verify sprite was drawn correctly
+        assert!(display.get_pixel(10, 5)); // Top-left
+        assert!(display.get_pixel(13, 5)); // Top-right
+        assert!(!display.get_pixel(14, 5)); // Should be off
+        assert!(display.get_pixel(10, 6)); // Bottom-left
+        assert!(!display.get_pixel(11, 6)); // Should be off (gap in sprite)
+        assert!(display.get_pixel(13, 6)); // Bottom-right
+
+        // No collision should occur (VF = 0)
+        assert_eq!(cpu.get_register(0xF).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_draw_instruction_collision() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(false);
+        let mut display = crate::display::Display::new();
+
+        // Set up existing pixel that will cause collision
+        display.set_pixel(10, 5, true);
+
+        // Set up sprite data that will overlap existing pixel
+        let sprite_addr = 0x300;
+        memory.write_byte(sprite_addr, 0b10000000).unwrap(); // Single pixel at top-left
+
+        // Set up CPU state
+        cpu.set_register(0, 10).unwrap(); // X coordinate (matches existing pixel)
+        cpu.set_register(1, 5).unwrap(); // Y coordinate (matches existing pixel)
+        cpu.i = sprite_addr;
+
+        // DRW V0, V1, 1 (instruction: 0xD011)
+        memory.write_word(PROGRAM_START_ADDR, 0xD011).unwrap();
+
+        cpu.execute_cycle(&mut memory, &mut display).unwrap();
+
+        // Pixel should be turned off due to XOR
+        assert!(!display.get_pixel(10, 5));
+
+        // Collision should be detected (VF = 1)
+        assert_eq!(cpu.get_register(0xF).unwrap(), 1);
     }
 }

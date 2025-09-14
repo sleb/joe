@@ -6,6 +6,19 @@ A CHIP-8 emulator written in Rust as a learning project to explore low-level pro
 
 CHIP-8 is an interpreted programming language developed in the 1970s for simple video games. It was designed to run on the COSMAC VIP and Telmac 1800 microcomputers, but became popular for creating simple games due to its ease of implementation.
 
+### Current Status
+
+🎉 **The emulator successfully runs CHIP-8 ROMs!**
+
+We can now execute the IBM Logo ROM, demonstrating:
+
+- ✅ Complete instruction decoding and execution
+- ✅ Sprite drawing with XOR logic and collision detection
+- ✅ Memory management with ROM loading
+- ✅ ASCII terminal rendering for development
+
+Try it yourself: `cargo run --example run_ibm_logo`
+
 ### Goals
 
 - Build a fully functional CHIP-8 emulator from scratch
@@ -54,6 +67,19 @@ CHIP-8 is an interpreted programming language developed in the 1970s for simple 
 - Input operations
 - Timer operations
 
+## Quick Start
+
+To see the emulator in action with the IBM Logo ROM:
+
+```bash
+# Clone and run the IBM logo example
+git clone <repository-url>
+cd octo
+cargo run --example run_ibm_logo
+```
+
+You should see the classic IBM logo rendered in ASCII art in your terminal!
+
 ## Project Architecture
 
 ### Core Components
@@ -74,11 +100,12 @@ CHIP-8 is an interpreted programming language developed in the 1970s for simple 
 - Write protection for interpreter area
 - MemoryBus trait abstraction for CPU integration
 
-#### 3. Display (`src/display.rs`) 🚧
+#### 3. Display (`src/display.rs`) ✅
 
-- 64x32 pixel framebuffer (TODO)
-- Sprite drawing with XOR logic (TODO)
-- Screen clearing functionality (TODO)
+- 64x32 pixel framebuffer with XOR sprite drawing
+- Collision detection for sprite operations
+- Coordinate wrapping at screen edges
+- Separation of logical display from rendering concerns
 
 #### 4. Input (`src/input.rs`) 🚧
 
@@ -97,12 +124,12 @@ CHIP-8 is an interpreted programming language developed in the 1970s for simple 
 - Component coordination (TODO)
 - Timing management (TODO)
 
-#### 7. Frontend (`src/frontend/`) 🚧
+#### 7. Rendering (`src/display.rs`) ✅
 
-- Graphics rendering (TODO - likely using `minifb` or `pixels`)
-- Input handling (TODO)
-- Audio output (TODO)
-- File loading interface (TODO)
+- ASCII terminal renderer for development
+- Headless renderer for testing
+- Extensible renderer trait for future GUI implementations
+- Clean separation between display logic and presentation
 
 ## Development Roadmap
 
@@ -114,24 +141,25 @@ CHIP-8 is an interpreted programming language developed in the 1970s for simple 
 - [x] ROM loading with validation and write protection
 - [x] Comprehensive testing framework and lean testing philosophy
 
-### Phase 2: Core Emulator 🚧 (v0.2.0)
+### Phase 2: Core Emulator ✅ (v0.2.0)
 
 - [x] CPU structure and register management (V0-VF, I, PC, SP)
 - [x] MemoryBus trait abstraction for clean CPU-memory interaction
 - [x] Instruction fetch/decode/execute framework
-- [x] Core instructions: load, add, jump, call/return, set index
+- [x] Centralized instruction decoding (single source of truth)
+- [x] Core instructions: load, add, jump, call/return, set index, draw, clear
 - [x] Stack management and program counter logic
-- [ ] Remaining CHIP-8 instructions (arithmetic, bitwise, etc.)
-- [ ] ASCII display for basic sprite rendering
-- [ ] Basic emulation loop to run simple ROMs
+- [x] Display system with XOR sprite drawing and collision detection
+- [x] ASCII renderer for development and testing
+- [x] Successfully runs IBM logo ROM
 
-### Phase 3: Display System (v0.3.0)
+### Phase 3: Extended Instruction Set (v0.3.0)
 
-- [ ] 64x32 framebuffer implementation
-- [ ] Sprite drawing with XOR logic
-- [ ] Display clear functionality
-- [ ] Collision detection for sprite drawing
-- [ ] Choose and integrate graphics library
+- [ ] Remaining CHIP-8 instructions (arithmetic, bitwise, conditional skips)
+- [ ] Timer operations (delay timer, sound timer)
+- [ ] Input handling (key press detection)
+- [ ] Binary-coded decimal (BCD) operations
+- [ ] Register dump/load operations
 
 ### Phase 4: Input and Timing (v0.4.0)
 
@@ -239,6 +267,35 @@ fn execute_cycle(&mut self, memory: &mut Memory) -> Result<()>
 
 **Rationale**: This enables testing with mock memory, different memory implementations, and keeps the CPU decoupled from specific memory types.
 
+#### Display/Renderer Separation Contract
+
+**Rule**: Logical display operations are separate from physical rendering.
+
+```rust
+// ✅ Correct: Separated concerns
+pub trait DisplayBus {
+    fn clear(&mut self);
+    fn draw_sprite(&mut self, x: u8, y: u8, data: &[u8]) -> Result<bool>;
+    // No render() method - that's not the display's job
+}
+
+pub trait Renderer {
+    fn render(&self, display: &dyn DisplayBus);
+}
+
+// ✅ Usage: Display logic + chosen renderer
+let mut display = Display::new();
+display.draw_sprite(10, 5, &sprite_data)?;
+AsciiRenderer.render(&display);  // or GuiRenderer, HeadlessRenderer, etc.
+
+// ❌ Incorrect: Mixed responsibilities
+impl Display {
+    fn draw_sprite_and_render_ascii(&mut self) { /* mixed concerns */ }
+}
+```
+
+**Rationale**: Display logic (XOR, collision detection, coordinate wrapping) is the same regardless of output method. Separating rendering allows multiple presentation methods (ASCII, GUI, headless testing) without duplicating display logic.
+
 #### Error Handling Contract
 
 **Rule**: Errors include rich context and location information when possible.
@@ -304,12 +361,12 @@ We use a **Rust build script** (`build.rs`) for automatic version management and
 **Pre-1.0 Development Versions:**
 
 - ✅ **v0.1.1** - Foundation complete (CLI, memory system, testing framework)
-- 🚧 **v0.2.0** - CPU foundation (registers, core instructions, execution framework) **[IN PROGRESS]**
-- 🎯 **v0.3.0** - Complete CPU (all 35 instructions, display integration)
-- 🎯 **v0.4.0** - Display system (64x32 framebuffer, sprite drawing)
-- 🎯 **v0.5.0** - Input and timing (16-key keypad, 60Hz timing)
-- 🎯 **v0.6.0** - Audio and ROM loading (sound timer, file loading)
-- 🎯 **v0.7.0** - Testing and compatibility (ROM compatibility, debugging)
+- ✅ **v0.2.0** - Core emulator complete (CPU, display, basic instructions, runs IBM logo)
+- 🎯 **v0.3.0** - Extended instruction set (all 35 instructions, timers, input)
+- 🎯 **v0.4.0** - GUI rendering (SDL/pixels integration, better user experience)
+- 🎯 **v0.5.0** - Audio and enhanced features (sound timer, debugging tools)
+- 🎯 **v0.6.0** - ROM compatibility and testing (test suite, multiple ROMs)
+- 🎯 **v0.7.0** - Performance and polish (optimization, configuration)
 - 🎯 **v1.0.0** - Production ready (stable API, documentation, distribution)
 
 **Patch Versions (v0.x.y):**
