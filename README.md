@@ -179,6 +179,84 @@ CHIP-8 is an interpreted programming language developed in the 1970s for simple 
 - **Error handling**: Use `Result` types and proper error propagation
 - **Lean testing**: Focused unit tests, minimal integration tests for real workflows
 
+### Architectural Contracts
+
+These are key design decisions and contracts that developers need to understand when working with the codebase:
+
+#### CPU Fetch Contract
+
+**Rule**: Fetch ALWAYS advances PC by 2 bytes, unconditionally.
+
+```rust
+// During fetch phase:
+let instruction = memory.read_word(pc);
+pc += 2;  // ALWAYS happens, regardless of instruction type
+
+// During execute phase:
+match instruction {
+    Jump { addr } => pc = addr,        // Simply override PC
+    Call { addr } => { push(pc); pc = addr; }  // Use current PC, then override
+    SkipEq { .. } if condition => pc += 2,     // Additional skip on top of fetch
+    _ => { /* PC already advanced during fetch */ }
+}
+```
+
+**Rationale**: This keeps fetch/execute separation clean and predictable. Instructions that need to modify PC (jumps, calls, returns) simply set PC to their target address. Skip instructions add an additional +2 on top of the fetch advancement.
+
+**Alternative Considered**: Conditional PC advancement based on instruction type was rejected as more complex and error-prone.
+
+#### Instruction Decoding Contract
+
+**Rule**: Single source of truth for opcode meanings via centralized `decode_opcode()` function.
+
+```rust
+// ✅ Correct: Use centralized decoding
+let instruction = decode_opcode(opcode)?;
+match instruction {
+    Instruction::LoadImm { vx, value } => self.v[vx] = value,
+    // ... handle all instruction types
+}
+
+// ❌ Incorrect: Independent opcode matching
+match opcode & 0xF000 {
+    0x6000 => { /* duplicate decoding logic */ }
+}
+```
+
+**Rationale**: CPU execution and disassembly both need to understand opcodes, but should never disagree on their meaning. The `Instruction` enum serves as the canonical definition of what each opcode means.
+
+#### Memory Bus Contract
+
+**Rule**: CPU accesses memory only through the `MemoryBus` trait, never directly.
+
+```rust
+// ✅ Correct: Use trait abstraction
+fn execute_cycle<M: MemoryBus>(&mut self, memory: &mut M) -> Result<()>
+
+// ❌ Incorrect: Direct memory dependency
+fn execute_cycle(&mut self, memory: &mut Memory) -> Result<()>
+```
+
+**Rationale**: This enables testing with mock memory, different memory implementations, and keeps the CPU decoupled from specific memory types.
+
+#### Error Handling Contract
+
+**Rule**: Errors include rich context and location information when possible.
+
+```rust
+// ✅ Correct: Rich error context
+CpuError::InstructionExecutionFailed {
+    instruction: 0xF123,
+    addr: 0x0200,
+    source: DecodeError::UnknownInstruction { opcode: 0xF123 }
+}
+
+// ❌ Incorrect: Generic or context-free errors
+CpuError::ExecutionFailed
+```
+
+**Rationale**: Debugging emulation issues requires knowing exactly where and why something failed. Generic errors make debugging much harder.
+
 ### Performance Considerations
 
 - Target 60Hz execution with accurate timing

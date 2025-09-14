@@ -52,6 +52,8 @@
 //! - Comprehensive error handling
 
 pub mod cpu;
+pub mod disassembler;
+pub mod instruction;
 pub mod memory;
 // pub mod display;
 // pub mod input;
@@ -60,6 +62,10 @@ pub mod memory;
 
 // Re-export main types for convenience
 pub use cpu::{Cpu, CpuError};
+pub use disassembler::{
+    InstructionAnalysis, analyze_instruction_usage, disassemble_rom, print_disassembly,
+};
+pub use instruction::{DecodeError, Instruction, decode_opcode};
 pub use memory::{Memory, MemoryBus, MemoryError, MemoryStats};
 // pub use display::{Display, DisplayError};
 // pub use emulator::{Emulator, EmulatorError};

@@ -4,6 +4,7 @@
 //! state including registers, program counter, stack, and timers.
 
 use crate::constants::*;
+use crate::instruction::{DecodeError, Instruction, decode_opcode};
 use crate::memory::{MemoryBus, MemoryError};
 use thiserror::Error;
 
@@ -13,6 +14,9 @@ pub enum CpuError {
     #[error("Memory error: {0}")]
     Memory(#[from] MemoryError),
 
+    #[error("Instruction decode error: {0}")]
+    Decode(#[from] DecodeError),
+
     #[error("Stack overflow - cannot push more than {max_depth} levels")]
     StackOverflow { max_depth: usize },
 
@@ -21,9 +25,6 @@ pub enum CpuError {
 
     #[error("Invalid register index: {register} (must be 0-15)")]
     InvalidRegister { register: usize },
-
-    #[error("Unknown instruction")]
-    UnknownInstruction { instruction: u16 },
 
     #[error("Instruction {instruction:#06x} at {addr:#06x} failed: {source}")]
     InstructionExecutionFailed {
@@ -108,6 +109,18 @@ impl Cpu {
     }
 
     /// Fetch a 16-bit instruction from memory at current PC
+    ///
+    /// # Fetch Contract
+    /// This method implements the CHIP-8 fetch contract:
+    /// 1. Read 16-bit instruction from memory at current PC
+    /// 2. Advance PC by 2 bytes (to next instruction)
+    /// 3. Return the instruction for execution
+    ///
+    /// The PC advancement is UNCONDITIONAL - it always happens during fetch.
+    /// Instructions that need to modify PC (jumps, calls, returns) will simply
+    /// set PC to their target address, overriding the fetch advancement.
+    ///
+    /// This design keeps fetch/execute separation clean and predictable.
     fn fetch_instruction<M: MemoryBus>(&mut self, memory: &M) -> Result<u16, CpuError> {
         // Validate PC is in valid range
         if self.pc as usize >= MEMORY_SIZE - 1 {
@@ -119,106 +132,174 @@ impl Cpu {
         let low_byte = memory.read_byte(self.pc + 1)?;
         let instruction = ((high_byte as u16) << 8) | (low_byte as u16);
 
-        // Increment PC to next instruction
+        // Advance PC by 2 (part of fetch contract - ALWAYS happens)
         self.pc += 2;
 
         Ok(instruction)
     }
 
     /// Decode and execute an instruction
-    fn execute_instruction(&mut self, instruction: u16) -> Result<(), CpuError> {
-        // Match on the first nibble to determine instruction family
-        match instruction & 0xF000 {
-            0x0000 => self.execute_system_instruction(instruction),
-            0x1000 => self.execute_jump_instruction(instruction),
-            0x2000 => self.execute_call_instruction(instruction),
-            0x6000 => self.execute_load_instruction(instruction),
-            0x7000 => self.execute_add_instruction(instruction),
-            0xA000 => self.execute_set_index_instruction(instruction),
-            0xD000 => self.execute_draw_instruction(instruction),
-            _ => Err(CpuError::UnknownInstruction { instruction }),
-        }
-    }
+    fn execute_instruction(&mut self, opcode: u16) -> Result<(), CpuError> {
+        // Decode the instruction using centralized decoding
+        let instruction = decode_opcode(opcode)?;
 
-    /// Execute system instructions (0x0???)
-    fn execute_system_instruction(&mut self, instruction: u16) -> Result<(), CpuError> {
+        // Execute based on the decoded instruction
         match instruction {
-            0x00E0 => {
-                // CLS - Clear display
+            Instruction::Cls => {
                 // TODO: Implement when display module is ready
                 Ok(())
             }
-            0x00EE => {
-                // RET - Return from subroutine
-                self.return_from_subroutine()
+            Instruction::Ret => self.return_from_subroutine(),
+            Instruction::Sys { .. } => {
+                // System calls are rarely used in modern CHIP-8 programs
+                Ok(())
             }
-            _ => Err(CpuError::UnknownInstruction { instruction }),
+            Instruction::Jump { addr } => {
+                self.pc = addr;
+                Ok(())
+            }
+            Instruction::Call { addr } => self.call_subroutine(addr),
+            Instruction::JumpV0 { addr } => {
+                self.pc = addr + (self.v[0] as u16);
+                Ok(())
+            }
+            Instruction::SkipEqImm { vx, value } => {
+                if self.v[vx] == value {
+                    self.pc += 2;
+                }
+                Ok(())
+            }
+            Instruction::SkipNeImm { vx, value } => {
+                if self.v[vx] != value {
+                    self.pc += 2;
+                }
+                Ok(())
+            }
+            Instruction::SkipEqReg { vx, vy } => {
+                if self.v[vx] == self.v[vy] {
+                    self.pc += 2;
+                }
+                Ok(())
+            }
+            Instruction::SkipNeReg { vx, vy } => {
+                if self.v[vx] != self.v[vy] {
+                    self.pc += 2;
+                }
+                Ok(())
+            }
+            Instruction::LoadImm { vx, value } => {
+                self.v[vx] = value;
+                Ok(())
+            }
+            Instruction::LoadReg { vx, vy } => {
+                self.v[vx] = self.v[vy];
+                Ok(())
+            }
+            Instruction::SetIndex { addr } => {
+                self.i = addr;
+                Ok(())
+            }
+            Instruction::AddImm { vx, value } => {
+                self.v[vx] = self.v[vx].wrapping_add(value);
+                Ok(())
+            }
+            Instruction::AddReg { vx, vy } => {
+                let (result, overflow) = self.v[vx].overflowing_add(self.v[vy]);
+                self.v[vx] = result;
+                self.v[0xF] = if overflow { 1 } else { 0 };
+                Ok(())
+            }
+            Instruction::SubReg { vx, vy } => {
+                let (result, borrow) = self.v[vx].overflowing_sub(self.v[vy]);
+                self.v[vx] = result;
+                self.v[0xF] = if borrow { 0 } else { 1 };
+                Ok(())
+            }
+            Instruction::SubnReg { vx, vy } => {
+                let (result, borrow) = self.v[vy].overflowing_sub(self.v[vx]);
+                self.v[vx] = result;
+                self.v[0xF] = if borrow { 0 } else { 1 };
+                Ok(())
+            }
+            Instruction::OrReg { vx, vy } => {
+                self.v[vx] |= self.v[vy];
+                Ok(())
+            }
+            Instruction::AndReg { vx, vy } => {
+                self.v[vx] &= self.v[vy];
+                Ok(())
+            }
+            Instruction::XorReg { vx, vy } => {
+                self.v[vx] ^= self.v[vy];
+                Ok(())
+            }
+            Instruction::ShrReg { vx } => {
+                self.v[0xF] = self.v[vx] & 0x01;
+                self.v[vx] >>= 1;
+                Ok(())
+            }
+            Instruction::ShlReg { vx } => {
+                self.v[0xF] = (self.v[vx] & 0x80) >> 7;
+                self.v[vx] <<= 1;
+                Ok(())
+            }
+            Instruction::Draw { vx: _, vy: _, n: _ } => {
+                // TODO: Implement when display module is ready
+                self.v[0xF] = 0; // No collision for now
+                Ok(())
+            }
+            Instruction::SkipKeyPressed { .. } => {
+                // TODO: Implement when input module is ready
+                Ok(())
+            }
+            Instruction::SkipKeyNotPressed { .. } => {
+                // TODO: Implement when input module is ready
+                Ok(())
+            }
+            Instruction::Random { vx, mask } => {
+                // TODO: Use proper random number generator
+                let random_value = 0x42; // Placeholder
+                self.v[vx] = random_value & mask;
+                Ok(())
+            }
+            Instruction::LoadDelayTimer { vx } => {
+                self.v[vx] = self.delay_timer;
+                Ok(())
+            }
+            Instruction::SetDelayTimer { vx } => {
+                self.delay_timer = self.v[vx];
+                Ok(())
+            }
+            Instruction::SetSoundTimer { vx } => {
+                self.sound_timer = self.v[vx];
+                Ok(())
+            }
+            Instruction::WaitKey { .. } => {
+                // TODO: Implement when input module is ready
+                Ok(())
+            }
+            Instruction::AddIndex { vx } => {
+                self.i += self.v[vx] as u16;
+                Ok(())
+            }
+            Instruction::LoadFont { vx } => {
+                // Font sprites are stored starting at 0x50, each is 5 bytes
+                self.i = 0x50 + (self.v[vx] as u16 * 5);
+                Ok(())
+            }
+            Instruction::StoreBcd { .. } => {
+                // TODO: Implement BCD conversion
+                Ok(())
+            }
+            Instruction::StoreRegisters { .. } => {
+                // TODO: Implement register storage
+                Ok(())
+            }
+            Instruction::LoadRegisters { .. } => {
+                // TODO: Implement register loading
+                Ok(())
+            }
         }
-    }
-
-    /// Execute jump instruction (1nnn)
-    fn execute_jump_instruction(&mut self, instruction: u16) -> Result<(), CpuError> {
-        // JP addr - Jump to location nnn
-        let addr = instruction & 0x0FFF;
-        self.pc = addr;
-        Ok(())
-    }
-
-    /// Execute call instruction (2nnn)
-    fn execute_call_instruction(&mut self, instruction: u16) -> Result<(), CpuError> {
-        // CALL addr - Call subroutine at nnn
-        let addr = instruction & 0x0FFF;
-        self.call_subroutine(addr)
-    }
-
-    /// Execute load instruction (6xkk)
-    fn execute_load_instruction(&mut self, instruction: u16) -> Result<(), CpuError> {
-        // LD Vx, byte - Set Vx = kk
-        let vx = ((instruction & 0x0F00) >> 8) as usize;
-        let byte = (instruction & 0x00FF) as u8;
-
-        if vx >= NUM_REGISTERS {
-            return Err(CpuError::InvalidRegister { register: vx });
-        }
-
-        self.v[vx] = byte;
-        Ok(())
-    }
-
-    /// Execute add instruction (7xkk)
-    fn execute_add_instruction(&mut self, instruction: u16) -> Result<(), CpuError> {
-        // ADD Vx, byte - Set Vx = Vx + kk
-        let vx = ((instruction & 0x0F00) >> 8) as usize;
-        let byte = (instruction & 0x00FF) as u8;
-
-        if vx >= NUM_REGISTERS {
-            return Err(CpuError::InvalidRegister { register: vx });
-        }
-
-        self.v[vx] = self.v[vx].wrapping_add(byte);
-        Ok(())
-    }
-
-    /// Execute set index instruction (Annn)
-    fn execute_set_index_instruction(&mut self, instruction: u16) -> Result<(), CpuError> {
-        // LD I, addr - Set I = nnn
-        let addr = instruction & 0x0FFF;
-        self.i = addr;
-        Ok(())
-    }
-
-    /// Execute draw instruction (Dxyn)
-    fn execute_draw_instruction(&mut self, instruction: u16) -> Result<(), CpuError> {
-        // DRW Vx, Vy, nibble - Display n-byte sprite starting at memory location I
-        // at (Vx, Vy), set VF = collision
-        let _vx = ((instruction & 0x0F00) >> 8) as usize;
-        let _vy = ((instruction & 0x00F0) >> 4) as usize;
-        let _n = (instruction & 0x000F) as u8;
-
-        // TODO: Implement when display module is ready
-        // For now, just clear collision flag
-        self.v[0xF] = 0;
-        Ok(())
     }
 
     /// Call a subroutine at the given address
