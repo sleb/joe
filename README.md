@@ -436,6 +436,13 @@ CpuError::ExecutionFailed
 - Efficient sprite drawing and collision detection
 - Minimal allocations in the main emulation loop
 
+### Version Management
+
+- **Automated versioning**: Rust build script provides git-based version info
+- **Release commands**: Use `just release patch|minor|major` for version bumps
+- **Consistency validation**: `just validate-versions` checks alignment across files
+- **Fallback support**: Build gracefully handles git-free installation environments
+
 ## Controls (Planned)
 
 CHIP-8 uses a 16-key keypad. Our keyboard mapping:
@@ -461,113 +468,37 @@ A 0 B F       Z X C V
 - [CHIP-8 Test Suite](https://github.com/Timendus/chip8-test-suite)
 - [Classic CHIP-8 Games](https://www.zophar.net/pdroms/chip8.html)
 
-## Version Management
+## Roadmap
 
-We use a **Rust build script** (`build.rs`) for automatic version management and validation:
+### ✅ **Core Emulator Complete (v0.2.0)**
 
-### Automatic Features
+- Full CHIP-8 instruction set (35 opcodes)
+- 4KB memory system with ROM loading
+- 64x32 display with ASCII rendering
+- Professional CLI with run/analyze commands
+- Real-time execution with statistics
+- Robust installation and version management
 
-- **Build-time validation**: Warns if `Cargo.toml` version doesn't match git tags
-- **Rich version info**: Git hash, branch, build time, dirty status automatically included
-- **Cross-platform**: Pure Rust, no shell script dependencies
-- **Cargo integration**: Rebuilds when git state changes
+### 🎯 **Next Major Features**
 
-### Versioning Strategy
+- **Input System** - 16-key keypad support for interactive games
+- **Audio System** - Sound timer implementation and beep generation
+- **GUI Interface** - Visual rendering with SDL/pixels integration
+- **Enhanced Tools** - Debugging features, save states, configuration
+- **ROM Compatibility** - Extensive testing with popular CHIP-8 games
+- **v1.0.0 Release** - Production-ready with stable API
 
-**Actual Development Progression:**
+## Version History
 
-- ✅ **v0.1.0** - Initial project structure, CLI foundation, git-based versioning
-- ✅ **v0.1.1** - Memory system complete (4KB RAM, font data, ROM loading, write protection)
-- ✅ **v0.1.2** - CPU foundation (instruction execution, registers, stack, timers, core opcodes)
-- ✅ **v0.1.3** - Display system complete (64x32 framebuffer, XOR sprites, ASCII renderer, IBM logo working)
-- ✅ **v0.1.4** - Professional CLI (run/analyze commands, comprehensive options, real-time execution)
-- 🚧 **v0.1.5** - Current development (enhanced display, signal handling, documentation updates)
+- **v0.2.0** (2025-09-14) - Project renamed to `joe`, robust installation fixed
+- **v0.1.5** (2025-09-13) - Real-time display updates, signal handling, enhanced UX
+- **v0.1.4** (2025-09-12) - Professional CLI commands, comprehensive options
+- **v0.1.3** (2025-09-11) - Display system complete, IBM Logo ROM working
+- **v0.1.2** (2025-09-10) - CPU instruction execution, core opcodes implemented
+- **v0.1.1** (2025-09-09) - Memory system, ROM loading, write protection
+- **v0.1.0** (2025-09-08) - Initial project structure, CLI foundation
 
-**Next Major Milestones:**
-
-- 🎯 **v0.2.0** - Input system (16-key keypad, keyboard mapping, interactive games)
-- 🎯 **v0.3.0** - Audio system (sound timer implementation, beep generation)
-- 🎯 **v0.4.0** - GUI rendering (SDL/pixels integration, visual interface)
-- 🎯 **v0.5.0** - Enhanced features (debugging tools, save states, configuration)
-- 🎯 **v0.6.0** - ROM compatibility (extensive testing, game compatibility)
-- 🎯 **v1.0.0** - Production ready (stable API, package distribution, complete documentation)
-
-**Patch Strategy:**
-
-- **v0.1.x**: Foundation and core emulator development
-- **v0.2.x+**: Feature additions and enhancements
-- Each patch includes incremental improvements, bug fixes, and documentation updates
-
-### Development Workflow
-
-**Daily Development:**
-
-```bash
-# Check current version (shows development state)
-just version-detailed
-# e.g., "0.1.0-dev.4" = 4 commits since v0.1.0 tag
-
-# Work on features, commit regularly
-git add -A && git commit -m "feat: implement CPU registers"
-
-# Run tests before committing
-just check
-```
-
-**Current Versioning Guidelines:**
-
-```bash
-# Patch releases (v0.1.x): Core emulator development
-just release patch    # 0.1.3 -> 0.1.4
-
-# Minor releases (v0.x.0): Major feature additions
-just release minor    # 0.1.x -> 0.2.0
-
-# Major release (v1.0.0): Production ready
-just release major    # 0.6.0 -> 1.0.0
-```
-
-**When to Version:**
-
-- **Patch (0.1.x)**: Core emulator milestones (memory, CPU, display, CLI)
-- **Minor (0.2.x+)**: Major feature additions (input, audio, GUI)
-- **Major (1.0.0)**: Production-ready with stable API and full compatibility
-
-**Note:** We're using patch versions (0.1.x) for rapid core development, then will switch to minor versions (0.x.0) for major feature additions once the core emulator is complete.
-
-### Release Process
-
-1. **Development**: Work normally, build script warns of any version issues
-2. **Pre-release validation**: `just validate-versions` to check consistency
-3. **Release**: Use `just release TYPE` for automated version bump and tagging
-4. **README Updates**: The release process automatically updates installation instructions with the new version
-5. **Publishing**: `git push origin main --tags`
-6. **Post-release validation**: `just validate-versions` to verify everything is consistent
-
-### Version Management Commands
-
-```bash
-# Check if all versions are consistent
-just validate-versions
-
-# Fix version inconsistencies by syncing to latest git tag
-just sync-versions
-
-# Emergency fix: sync README to current Cargo.toml version
-just fix-versions
-
-# Manual README version update
-just update-readme-version 0.1.5
-```
-
-**Version Consistency Rules:**
-
-- Cargo.toml version should match the latest git tag
-- README installation instructions should match the latest git tag
-- Always run `just validate-versions` before and after releases
-- If versions are inconsistent, use `just sync-versions` to fix
-
-The build script automatically detects version mismatches and provides helpful warnings during development.
+See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 
 ## Using the Emulator
 
@@ -607,14 +538,6 @@ cargo build --release
 # Run during development (without installing)
 cargo run -- run roms/ibm-logo.ch8
 cargo run -- analyze roms/ibm-logo.ch8 --disassemble
-
-# README version management (for releases)
-just update-readme-version 0.1.5  # Update installation instructions
-
-# Version management commands
-just validate-versions     # Check if all versions are consistent
-just sync-versions         # Fix inconsistencies by syncing to latest git tag
-just fix-versions          # Emergency fix: sync README to Cargo.toml version
 ```
 
 ## Development Setup
