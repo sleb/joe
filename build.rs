@@ -7,35 +7,36 @@ fn main() {
     println!("cargo:rerun-if-changed=.git/HEAD");
     println!("cargo:rerun-if-changed=.git/refs/heads/main");
     println!("cargo:rerun-if-changed=.git/refs/tags");
+    println!("cargo:rerun-if-changed=Cargo.toml");
 
-    // Get git version information
-    let version_info = get_git_version_info();
+    // Get version information (git-based or fallback)
+    let version_info = get_version_info();
 
-    match version_info {
-        Ok(info) => {
-            // Set environment variables that our code can access
-            println!("cargo:rustc-env=BUILD_VERSION={}", info.version);
-            println!("cargo:rustc-env=BUILD_VERSION_FULL={}", info.full_version);
-            println!("cargo:rustc-env=BUILD_GIT_HASH={}", info.git_hash);
-            println!("cargo:rustc-env=BUILD_GIT_BRANCH={}", info.git_branch);
-            println!("cargo:rustc-env=BUILD_GIT_DIRTY={}", info.git_dirty);
-            println!("cargo:rustc-env=BUILD_IS_RELEASE={}", info.is_release);
-            println!(
-                "cargo:rustc-env=BUILD_COMMITS_SINCE_TAG={}",
-                info.commits_since_tag
-            );
+    // Set environment variables that our code can access
+    println!("cargo:rustc-env=BUILD_VERSION={}", version_info.version);
+    println!(
+        "cargo:rustc-env=BUILD_VERSION_FULL={}",
+        version_info.full_version
+    );
+    println!("cargo:rustc-env=BUILD_GIT_HASH={}", version_info.git_hash);
+    println!(
+        "cargo:rustc-env=BUILD_GIT_BRANCH={}",
+        version_info.git_branch
+    );
+    println!("cargo:rustc-env=BUILD_GIT_DIRTY={}", version_info.git_dirty);
+    println!(
+        "cargo:rustc-env=BUILD_IS_RELEASE={}",
+        version_info.is_release
+    );
+    println!(
+        "cargo:rustc-env=BUILD_COMMITS_SINCE_TAG={}",
+        version_info.commits_since_tag
+    );
 
-            if let Some(tag) = &info.base_tag {
-                println!("cargo:rustc-env=BUILD_BASE_TAG={}", tag);
-            } else {
-                println!("cargo:rustc-env=BUILD_BASE_TAG=");
-            }
-        }
-        Err(e) => {
-            // Build fails if we can't determine proper version
-            println!("cargo:warning={}", e);
-            panic!("{}", e);
-        }
+    if let Some(tag) = &version_info.base_tag {
+        println!("cargo:rustc-env=BUILD_BASE_TAG={}", tag);
+    } else {
+        println!("cargo:rustc-env=BUILD_BASE_TAG=");
     }
 
     // Add build timestamp
@@ -52,7 +53,7 @@ fn main() {
 }
 
 #[derive(Debug)]
-struct GitVersionInfo {
+struct VersionInfo {
     /// Clean version string (e.g., "1.0.0" or "1.0.0-dev.5")
     version: String,
     /// Full version with git info (e.g., "1.0.0-5-g1a2b3c4-dirty")
@@ -71,27 +72,34 @@ struct GitVersionInfo {
     base_tag: Option<String>,
 }
 
-fn get_git_version_info() -> Result<GitVersionInfo, String> {
+fn get_version_info() -> VersionInfo {
+    // Try git-based versioning first
+    match get_git_version_info() {
+        Ok(git_info) => git_info,
+        Err(git_error) => {
+            // Log the git error as a warning but continue
+            println!("cargo:warning=Git versioning not available: {}", git_error);
+            println!("cargo:warning=Falling back to Cargo.toml version");
+
+            // Fall back to Cargo.toml version
+            get_fallback_version_info()
+        }
+    }
+}
+
+fn get_git_version_info() -> Result<VersionInfo, String> {
     // Check if we're in a git repository
     if !Path::new(".git").exists() {
-        return Err(
-            "Not in a git repository. Git-based versioning requires a git repository.\n\
-             Please run: git init && git add . && git commit -m 'initial commit' && git tag v0.1.0"
-                .to_string(),
-        );
+        return Err("Not in a git repository".to_string());
     }
 
-    // First check if any tags exist
+    // Check if any tags exist
     let has_tags = run_git_command(&["tag", "-l"])
         .map(|output| !output.trim().is_empty())
         .unwrap_or(false);
 
     if !has_tags {
-        return Err(
-            "No git tags found. Git-based versioning requires at least one semantic version tag.\n\
-             Please create an initial tag: git tag v0.1.0"
-                .to_string(),
-        );
+        return Err("No git tags found".to_string());
     }
 
     // Use git describe to get version information
@@ -111,7 +119,7 @@ fn get_git_version_info() -> Result<GitVersionInfo, String> {
 
     let git_dirty = describe_output.contains("-dirty");
 
-    Ok(GitVersionInfo {
+    Ok(VersionInfo {
         version,
         full_version,
         git_hash,
@@ -121,6 +129,23 @@ fn get_git_version_info() -> Result<GitVersionInfo, String> {
         commits_since_tag,
         base_tag,
     })
+}
+
+fn get_fallback_version_info() -> VersionInfo {
+    // Get version from Cargo.toml
+    let cargo_version = env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.0".to_string());
+
+    // Create a fallback version info with minimal information
+    VersionInfo {
+        version: cargo_version.clone(),
+        full_version: format!("{}-fallback", cargo_version),
+        git_hash: "unknown".to_string(),
+        git_branch: "unknown".to_string(),
+        git_dirty: false,
+        is_release: true, // Assume fallback builds are releases
+        commits_since_tag: 0,
+        base_tag: Some(format!("v{}", cargo_version)),
+    }
 }
 
 fn parse_git_describe(
