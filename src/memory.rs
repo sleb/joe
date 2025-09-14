@@ -6,6 +6,15 @@
 use crate::constants::*;
 use thiserror::Error;
 
+/// Memory bus trait for CPU to interact with memory system
+pub trait MemoryBus {
+    /// Read a single byte from memory
+    fn read_byte(&self, addr: u16) -> Result<u8, MemoryError>;
+
+    /// Write a single byte to memory
+    fn write_byte(&mut self, addr: u16, value: u8) -> Result<(), MemoryError>;
+}
+
 /// End of interpreter area (write-protected by default)
 pub const INTERPRETER_END_ADDR: u16 = 0x1FF;
 
@@ -231,6 +240,16 @@ pub struct MemoryStats {
 impl Default for Memory {
     fn default() -> Self {
         Self::new(true) // Write protection enabled by default
+    }
+}
+
+impl MemoryBus for Memory {
+    fn read_byte(&self, addr: u16) -> Result<u8, MemoryError> {
+        self.read_byte(addr)
+    }
+
+    fn write_byte(&mut self, addr: u16, value: u8) -> Result<(), MemoryError> {
+        self.write_byte(addr, value)
     }
 }
 

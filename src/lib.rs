@@ -7,7 +7,7 @@
 //!
 //! The emulator is built with a modular architecture:
 //! - [`Memory`] - 4KB RAM with font data and ROM loading
-//! - [`Cpu`] - Instruction execution and register management (TODO)
+//! - [`Cpu`] - Instruction execution and register management
 //! - [`Display`] - 64x32 framebuffer with sprite operations (TODO)
 //! - [`Input`] - 16-key keypad handling (TODO)
 //! - [`Audio`] - Sound timer and beep generation (TODO)
@@ -26,10 +26,10 @@
 //! let mut memory = Memory::new(true);
 //! memory.load_rom(&rom_data).unwrap();
 //!
-//! // TODO: Create and run emulator when implemented
-//! // use octo::Emulator;
-//! // let mut emulator = Emulator::new(memory);
-//! // emulator.run();
+//! // Create CPU and execute instructions
+//! use octo::Cpu;
+//! let mut cpu = Cpu::new();
+//! // cpu.execute_cycle(&mut memory).unwrap();
 //! ```
 //!
 //! # Memory Layout
@@ -51,20 +51,16 @@
 //! - Memory write protection (configurable)
 //! - Comprehensive error handling
 
+pub mod cpu;
 pub mod memory;
-
-// TODO: Add these modules as we implement them
-// pub mod cpu;
 // pub mod display;
 // pub mod input;
 // pub mod audio;
 // pub mod emulator;
 
 // Re-export main types for convenience
-pub use memory::{Memory, MemoryError, MemoryStats};
-
-// TODO: Re-export other main types as we add them
-// pub use cpu::{Cpu, CpuError};
+pub use cpu::{Cpu, CpuError};
+pub use memory::{Memory, MemoryBus, MemoryError, MemoryStats};
 // pub use display::{Display, DisplayError};
 // pub use emulator::{Emulator, EmulatorError};
 
@@ -105,4 +101,3 @@ pub mod constants {
 }
 
 // No tests in lib.rs - unit tests are in individual modules,
-// integration tests are in tests/ directory
