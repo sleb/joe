@@ -1,4 +1,4 @@
-Don't write any code before checking in with the user and aligning on the design/requirements/approach.
+Don't write any code before checking until you get explicit confirmation from the user to start. First confirm alignment no the plan. Once you have it, ask for the go-ahead to start implementation.
 Always keep the documentation up to date (focus on the README and keeping that clean, complete, and concise).
 Take time to explain reasoning and tradeoffs, especially when asking for input from the user.
 Be bold with suggestions and ideas when you think the project is deviating from best practices or idiomatic, modern Rust.
