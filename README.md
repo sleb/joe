@@ -70,6 +70,8 @@ octo version
 - [Rust](https://rustup.rs/) (latest stable version)
 - Git (for installation from GitHub)
 
+> **✅ Robust Installation:** The build system automatically handles both git-enabled and git-free environments. When installing via `cargo install --git`, the emulator gracefully falls back to standard versioning if git metadata isn't available, ensuring installation always succeeds.
+
 ### Goals
 
 **✅ Achieved:**

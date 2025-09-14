@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Build script now gracefully falls back to Cargo.toml version when git versioning isn't available
+- Resolves installation failures when using `cargo install --git` in environments with limited git metadata
+- Maintains rich git version information for development builds while ensuring robust installation process
+
 ## [0.1.5] - 2025-09-13
 
 ### Added
