@@ -19,7 +19,7 @@ We can now execute the IBM Logo ROM, demonstrating:
 - ✅ Memory management with ROM loading
 - ✅ ASCII terminal rendering for development
 
-Try it yourself: `joe run roms/ibm-logo.ch8`
+Try it yourself: `joe run <ROM>`
 
 ## Installation
 
@@ -151,14 +151,16 @@ cargo install --git https://github.com/sleb/joe --tag v0.2.0
 
 ## Quick Start
 
-To see the emulator in action with the IBM Logo ROM:
+To see the emulator in action:
 
 ```bash
 # After installation (see Installation section above)
-joe run roms/ibm-logo.ch8
+joe run <ROM>
 ```
 
-You'll see the classic IBM logo being drawn in real-time with ASCII art in your terminal! The emulator shows continuous display updates as the ROM executes, just like a real CHIP-8 system. Use `Ctrl+C` to stop execution and see statistics.
+You'll see the ROM being executed in real-time with ASCII art in your terminal! The emulator shows continuous display updates as the ROM executes, just like a real CHIP-8 system. Use `Ctrl+C` to stop execution and see statistics.
+
+See the [Looking for ROMs](#looking-for-roms) section below for test ROMs you can try.
 
 ## Examples
 
@@ -204,12 +206,11 @@ The `<ROM>` parameter accepts either local file paths or remote URLs:
 
 ```bash
 # Local file examples
-joe run roms/ibm-logo.ch8
 joe run /path/to/game.ch8
 joe run ./relative/path/rom.ch8
+joe run game.ch8
 
 # Remote URL examples
-joe run https://github.com/Timendus/chip8-test-suite/raw/main/bin/2-ibm-logo.ch8
 joe run https://example.com/games/tetris.ch8
 joe analyze https://retro-games.org/roms/pong.ch8
 ```
@@ -221,6 +222,29 @@ joe analyze https://retro-games.org/roms/pong.ch8
 - 30-second timeout for network requests
 - Clear error messages for network failures
 - Same ROM size limits apply (max 3584 bytes)
+
+## Looking for ROMs
+
+### Test ROMs
+
+For testing and learning, these publicly available ROMs are great starting points:
+
+```bash
+# IBM Logo - Classic CHIP-8 test ROM that draws the IBM logo
+joe run https://github.com/Timendus/chip8-test-suite/raw/main/bin/2-ibm-logo.ch8
+
+# CHIP-8 Test Suite - Comprehensive test ROMs for emulator development
+joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-logo.ch8
+```
+
+### ROM Sources
+
+- **[Timendus CHIP-8 Test Suite](https://github.com/Timendus/chip8-test-suite)** - Modern test ROMs for emulator validation
+- **[CHIP-8 Archive](https://johnearnest.github.io/chip8Archive/)** - Curated collection of classic games
+- **[Zophar's Domain](https://www.zophar.net/pdroms/chip8.html)** - Public domain CHIP-8 games
+- **[CHIP-8 Games Pack](https://www.revivedretro.com/chip-8/)** - Collection of homebrew games
+
+> **Note:** Always respect copyright and licensing when downloading ROMs. The test ROMs above are specifically designed for public use.
 
 ## Project Architecture
 
@@ -529,17 +553,16 @@ Once installed, use these commands:
 
 ```bash
 # Run CHIP-8 ROMs
-joe run roms/ibm-logo.ch8
-joe run rom-file.ch8 --verbose
-joe run rom-file.ch8 --headless --cycle-delay-ms 0
+joe run <ROM>
+joe run <ROM> --verbose
+joe run <ROM> --headless --cycle-delay-ms 0
 
 # Analyze ROMs
-joe analyze roms/ibm-logo.ch8
-joe analyze rom-file.ch8 --disassemble
+joe analyze <ROM>
+joe analyze <ROM> --disassemble
 
 # System information
 joe version
-joe --help
 ```
 
 ## Development
@@ -559,8 +582,8 @@ cargo test
 cargo build --release
 
 # Run during development (without installing)
-cargo run -- run roms/ibm-logo.ch8
-cargo run -- analyze roms/ibm-logo.ch8 --disassemble
+cargo run -- run <ROM>
+cargo run -- analyze <ROM> --disassemble
 ```
 
 ## Development Setup

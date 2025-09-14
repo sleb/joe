@@ -8,7 +8,7 @@ use joe::{
 pub struct AnalyzeCommand {
     /// Path to the ROM file to analyze, or HTTP(S) URL to download ROM from
     /// Examples:
-    ///   - Local file: roms/game.ch8
+    ///   - Local file: game.ch8
     ///   - Remote URL: https://example.com/rom.ch8
     #[arg(value_name = "ROM_SOURCE")]
     pub rom_source: String,

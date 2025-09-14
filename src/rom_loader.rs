@@ -167,8 +167,8 @@ mod tests {
 
         // Test file path detection
         assert_eq!(
-            RomSource::from_string("roms/test.ch8"),
-            RomSource::File("roms/test.ch8".to_string())
+            RomSource::from_string("test.ch8"),
+            RomSource::File("test.ch8".to_string())
         );
         assert_eq!(
             RomSource::from_string("/absolute/path/rom.ch8"),
@@ -187,10 +187,10 @@ mod tests {
         assert!(!url_source.is_file());
         assert_eq!(url_source.description(), "https://example.com/rom.ch8");
 
-        let file_source = RomSource::File("roms/test.ch8".to_string());
+        let file_source = RomSource::File("test.ch8".to_string());
         assert!(file_source.is_file());
         assert!(!file_source.is_url());
-        assert_eq!(file_source.description(), "roms/test.ch8");
+        assert_eq!(file_source.description(), "test.ch8");
     }
 
     #[test]
