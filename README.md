@@ -25,7 +25,7 @@ Try it yourself: `octo run roms/ibm-logo.ch8`
 
 ```bash
 # Install the latest release from GitHub
-cargo install --git https://github.com/sleb/octo --tag v0.1.3
+cargo install --git https://github.com/sleb/octo --tag v0.1.4
 
 # Verify installation
 octo version
@@ -35,11 +35,11 @@ octo version
 
 ```bash
 # Update to the latest release
-cargo install --git https://github.com/sleb/octo --tag v0.1.3 --force
+cargo install --git https://github.com/sleb/octo --tag v0.1.4 --force
 
 # Or uninstall and reinstall
 cargo uninstall octo
-cargo install --git https://github.com/sleb/octo --tag v0.1.3
+cargo install --git https://github.com/sleb/octo --tag v0.1.4
 ```
 
 ### From Specific Version
@@ -452,21 +452,29 @@ We use a **Rust build script** (`build.rs`) for automatic version management and
 
 ### Versioning Strategy
 
-**Pre-1.0 Development Versions:**
+**Actual Development Progression:**
 
-- ✅ **v0.1.1** - Foundation complete (CLI, memory system, testing framework)
-- ✅ **v0.2.0** - Core emulator complete (CPU, display, basic instructions, runs IBM logo)
-- 🎯 **v0.3.0** - Extended instruction set (all 35 instructions, timers, input)
-- 🎯 **v0.4.0** - GUI rendering (SDL/pixels integration, better user experience)
-- 🎯 **v0.5.0** - Audio and enhanced features (sound timer, debugging tools)
-- 🎯 **v0.6.0** - ROM compatibility and testing (test suite, multiple ROMs)
-- 🎯 **v0.7.0** - Performance and polish (optimization, configuration)
-- 🎯 **v1.0.0** - Production ready (stable API, documentation, distribution)
+- ✅ **v0.1.0** - Initial project structure, CLI foundation, git-based versioning
+- ✅ **v0.1.1** - Memory system complete (4KB RAM, font data, ROM loading, write protection)
+- ✅ **v0.1.2** - CPU foundation (instruction execution, registers, stack, timers, core opcodes)
+- ✅ **v0.1.3** - Display system complete (64x32 framebuffer, XOR sprites, ASCII renderer, IBM logo working)
+- ✅ **v0.1.4** - Professional CLI (run/analyze commands, comprehensive options, real-time execution)
+- 🚧 **v0.1.5** - Current development (enhanced display, signal handling, documentation updates)
 
-**Patch Versions (v0.x.y):**
+**Next Major Milestones:**
 
-- Infrastructure improvements, bug fixes, documentation
-- Regular incremental updates between major features
+- 🎯 **v0.2.0** - Input system (16-key keypad, keyboard mapping, interactive games)
+- 🎯 **v0.3.0** - Audio system (sound timer implementation, beep generation)
+- 🎯 **v0.4.0** - GUI rendering (SDL/pixels integration, visual interface)
+- 🎯 **v0.5.0** - Enhanced features (debugging tools, save states, configuration)
+- 🎯 **v0.6.0** - ROM compatibility (extensive testing, game compatibility)
+- 🎯 **v1.0.0** - Production ready (stable API, package distribution, complete documentation)
+
+**Patch Strategy:**
+
+- **v0.1.x**: Foundation and core emulator development
+- **v0.2.x+**: Feature additions and enhancements
+- Each patch includes incremental improvements, bug fixes, and documentation updates
 
 ### Development Workflow
 
@@ -484,14 +492,14 @@ git add -A && git commit -m "feat: implement CPU registers"
 just check
 ```
 
-**Versioning Guidelines:**
+**Current Versioning Guidelines:**
 
 ```bash
-# Patch releases (v0.1.x): Infrastructure, docs, bug fixes
-just release patch    # 0.1.0 -> 0.1.1
+# Patch releases (v0.1.x): Core emulator development
+just release patch    # 0.1.3 -> 0.1.4
 
-# Minor releases (v0.x.0): New major features/components
-just release minor    # 0.1.1 -> 0.2.0
+# Minor releases (v0.x.0): Major feature additions
+just release minor    # 0.1.x -> 0.2.0
 
 # Major release (v1.0.0): Production ready
 just release major    # 0.6.0 -> 1.0.0
@@ -499,16 +507,43 @@ just release major    # 0.6.0 -> 1.0.0
 
 **When to Version:**
 
-- **Patch (0.1.x)**: After completing infrastructure improvements
-- **Minor (0.x.0)**: After completing major emulator components (CPU, Display, etc.)
-- **Major (1.0.0)**: When emulator is production-ready with stable API
+- **Patch (0.1.x)**: Core emulator milestones (memory, CPU, display, CLI)
+- **Minor (0.2.x+)**: Major feature additions (input, audio, GUI)
+- **Major (1.0.0)**: Production-ready with stable API and full compatibility
+
+**Note:** We're using patch versions (0.1.x) for rapid core development, then will switch to minor versions (0.x.0) for major feature additions once the core emulator is complete.
 
 ### Release Process
 
 1. **Development**: Work normally, build script warns of any version issues
-2. **Release**: Use `just release TYPE` for automated version bump and tagging
-3. **README Updates**: The release process automatically updates installation instructions with the new version
-4. **Publishing**: `git push origin main --tags`
+2. **Pre-release validation**: `just validate-versions` to check consistency
+3. **Release**: Use `just release TYPE` for automated version bump and tagging
+4. **README Updates**: The release process automatically updates installation instructions with the new version
+5. **Publishing**: `git push origin main --tags`
+6. **Post-release validation**: `just validate-versions` to verify everything is consistent
+
+### Version Management Commands
+
+```bash
+# Check if all versions are consistent
+just validate-versions
+
+# Fix version inconsistencies by syncing to latest git tag
+just sync-versions
+
+# Emergency fix: sync README to current Cargo.toml version
+just fix-versions
+
+# Manual README version update
+just update-readme-version 0.1.5
+```
+
+**Version Consistency Rules:**
+
+- Cargo.toml version should match the latest git tag
+- README installation instructions should match the latest git tag
+- Always run `just validate-versions` before and after releases
+- If versions are inconsistent, use `just sync-versions` to fix
 
 The build script automatically detects version mismatches and provides helpful warnings during development.
 
@@ -552,7 +587,12 @@ cargo run -- run roms/ibm-logo.ch8
 cargo run -- analyze roms/ibm-logo.ch8 --disassemble
 
 # README version management (for releases)
-just update-readme-version 0.1.4  # Update installation instructions
+just update-readme-version 0.1.5  # Update installation instructions
+
+# Version management commands
+just validate-versions     # Check if all versions are consistent
+just sync-versions         # Fix inconsistencies by syncing to latest git tag
+just fix-versions          # Emergency fix: sync README to Cargo.toml version
 ```
 
 ## Development Setup

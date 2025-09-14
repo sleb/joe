@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2025-09-13
+
 ### Added
 
 - Real-time continuous display updates during ROM execution
@@ -16,21 +18,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for unlimited execution (removed artificial infinite loop detection)
 - Graceful Ctrl+C handling that shows statistics and final display state before exiting
 - Eliminated magic numbers in ASCII renderer with configurable pixel width system
+- Pixel character configuration methods in Renderer trait (pixel_width, pixel_on_char, pixel_off_char)
+- Comprehensive version management validation commands (validate-versions, sync-versions, fix-versions)
+- Automated version consistency checking in release process
 
 ### Changed
 
 - ROM execution now runs indefinitely by default (max-cycles=0) instead of stopping at 1000 cycles
 - Infinite loops are now treated as expected behavior, not errors
 - Display updates happen in real-time as the ROM executes, not just at completion
-- ASCII renderer uses more compact display format for continuous updates
+- ASCII renderer uses double-wide characters (██) for better pixel representation
 - Default cycle delay reduced from 100ms to 16ms for smoother animation
 - Updated project roadmap and architecture documentation to reflect current implementation status
 - Removed redundant final display output in continuous mode (display already visible above)
+- Versioning strategy updated to reflect actual development progression
+- Release process enhanced with pre/post-release version validation
+- Version management commands integrated into development workflow
 
 ### Removed
 
 - Artificial infinite loop detection that incorrectly treated normal CHIP-8 behavior as bugs
 - Static display rendering (display now updates continuously during execution)
+- Magic number dependencies in ASCII renderer border calculations
+
+### Technical
+
+- Added ctrlc dependency for cross-platform signal handling
+- Improved Renderer trait with configurable pixel representation
+- Enhanced statistics display logic with reusable helper function
+- Updated documentation to accurately reflect complete CHIP-8 instruction set implementation
+- Improved version management SOP with validation commands to prevent inconsistencies
+- Fixed version synchronization issues between Cargo.toml, README, and git tags
 
 ## [0.1.3] - 2025-09-13
 
@@ -145,8 +163,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Created chrono-based build timestamp generation
 - Set up automatic git hash, branch, and dirty status detection
 
-[Unreleased]: https://github.com/username/octo/compare/v0.1.3...HEAD
-[0.1.3]: https://github.com/username/octo/compare/v0.1.2...v0.1.3
-[0.1.2]: https://github.com/username/octo/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/username/octo/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/username/octo/releases/tag/v0.1.0
+[Unreleased]: https://github.com/sleb/octo/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/sleb/octo/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/sleb/octo/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/sleb/octo/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/sleb/octo/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/sleb/octo/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/sleb/octo/releases/tag/v0.1.0
