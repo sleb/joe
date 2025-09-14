@@ -217,30 +217,55 @@ We use a **Rust build script** (`build.rs`) for automatic version management and
 
 ### Versioning Strategy
 
-**v0.x.0 = Pre-release development**
+**Pre-1.0 Development Versions:**
 
-- v0.1.0 = Project foundation (current)
-- v0.2.0 = Core emulator working
-- v0.3.0 = Display system
-- v0.4.0 = Input and timing
-- v0.5.0 = Audio and ROM loading
-- v0.6.0 = Testing and compatibility
-- v1.0.0 = Production ready
+- ✅ **v0.1.0** - Project foundation (CLI, build system, tooling, memory system)
+- 🎯 **v0.2.0** - Core emulator (CPU + instruction execution) **[NEXT GOAL]**
+- 🎯 **v0.3.0** - Display system (64x32 framebuffer, sprite drawing)
+- 🎯 **v0.4.0** - Input and timing (16-key keypad, 60Hz timing)
+- 🎯 **v0.5.0** - Audio and ROM loading (sound timer, file loading)
+- 🎯 **v0.6.0** - Testing and compatibility (ROM compatibility, debugging)
+- 🎯 **v1.0.0** - Production ready (stable API, documentation, distribution)
+
+**Patch Versions (v0.x.y):**
+
+- Infrastructure improvements, bug fixes, documentation
+- Regular incremental updates between major features
 
 ### Development Workflow
 
+**Daily Development:**
+
 ```bash
-# Version info (shows current git-based version)
+# Check current version (shows development state)
 just version-detailed
+# e.g., "0.1.0-dev.4" = 4 commits since v0.1.0 tag
 
-# Development versions show commits since tag
-# e.g., "0.1.0-dev.5" = 5 commits since v0.1.0
+# Work on features, commit regularly
+git add -A && git commit -m "feat: implement CPU registers"
 
-# Create a new release
-just release minor    # 0.1.0 -> 0.2.0
-just release patch    # 0.2.0 -> 0.2.1
+# Run tests before committing
+just check
+```
+
+**Versioning Guidelines:**
+
+```bash
+# Patch releases (v0.1.x): Infrastructure, docs, bug fixes
+just release patch    # 0.1.0 -> 0.1.1
+
+# Minor releases (v0.x.0): New major features/components
+just release minor    # 0.1.1 -> 0.2.0
+
+# Major release (v1.0.0): Production ready
 just release major    # 0.6.0 -> 1.0.0
 ```
+
+**When to Version:**
+
+- **Patch (0.1.x)**: After completing infrastructure improvements
+- **Minor (0.x.0)**: After completing major emulator components (CPU, Display, etc.)
+- **Major (1.0.0)**: When emulator is production-ready with stable API
 
 ### Release Process
 
@@ -329,6 +354,10 @@ This is primarily a learning project, but suggestions and improvements are welco
 - **just**: Task runner for common commands (`brew install just`)
 - **cargo-release**: Automated release management (optional)
 - **Standard Rust toolchain**: rustc, cargo, clippy, rustfmt
+
+## Release History
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed release notes and version history.
 
 ## License
 
