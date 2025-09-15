@@ -80,7 +80,7 @@ pub mod rom_loader;
 // pub mod emulator;
 
 // Re-export main types for convenience
-pub use cpu::{Cpu, CpuError};
+pub use cpu::{Cpu, CpuError, CpuState};
 pub use disassembler::{
     InstructionAnalysis, analyze_instruction_usage, disassemble_rom, print_disassembly,
 };

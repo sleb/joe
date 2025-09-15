@@ -1,5 +1,7 @@
 use clap::Parser;
-use joe::{AsciiRenderer, Cpu, Display, Input, Memory, Renderer, RomSource, load_rom_data};
+use joe::{
+    AsciiRenderer, Cpu, Display, Input, InputBus, Memory, Renderer, RomSource, load_rom_data,
+};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -128,6 +130,9 @@ impl RunCommand {
                     cpu.get_index()
                 );
             }
+
+            // Poll input backend (allow non-blocking input backends to update state)
+            input.update();
 
             // Execute one CPU cycle
             match cpu.execute_cycle(&mut memory, &mut display, &mut input) {

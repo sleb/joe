@@ -16,7 +16,7 @@
 //! └─┴─┴─┴─┘          └─┴─┴─┴─┘
 //! ```
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use thiserror::Error;
 
 /// CHIP-8 key values (0-F hexadecimal)
@@ -112,16 +112,16 @@ pub trait InputBus {
         }
     }
 
-    /// Wait for any key press and return the key value (blocking)
-    fn wait_for_key_press(&mut self) -> Result<ChipKey, InputError>;
+    /// Try to get a key press without blocking - returns None if no key available
+    fn try_get_key_press(&mut self) -> Option<ChipKey>;
 
-    /// Wait for any key press and return the key as u8 (for compatibility)
-    fn wait_for_key_press_u8(&mut self) -> Result<u8, InputError> {
-        self.wait_for_key_press().map(|key| key.to_u8())
+    /// Try to get a key press as u8 without blocking (for compatibility)
+    fn try_get_key_press_u8(&mut self) -> Option<u8> {
+        self.try_get_key_press().map(|key| key.to_u8())
     }
 
     /// Update the input state (called each frame)
-    fn update(&mut self) -> Result<(), InputError>;
+    fn update(&mut self);
 
     /// Get a list of currently pressed keys
     fn get_pressed_keys(&self) -> Vec<ChipKey>;
@@ -345,34 +345,27 @@ impl InputBus for Input {
         self.key_states[key.to_u8() as usize]
     }
 
-    fn wait_for_key_press(&mut self) -> Result<ChipKey, InputError> {
-        self.waiting_for_key = true;
-
+    fn try_get_key_press(&mut self) -> Option<ChipKey> {
         // Check if any key is currently pressed
-        for (i, &pressed) in self.key_states.iter().enumerate() {
-            if pressed {
-                self.waiting_for_key = false;
-                return Ok(ChipKey::from_u8(i as u8).unwrap());
-            }
+        let pressed_keys = self.get_pressed_keys();
+        if let Some(&first_key) = pressed_keys.first() {
+            return Some(first_key);
         }
 
         // Check input buffer for recent key presses
         while let Some(ch) = self.input_buffer.pop() {
             if let Some(chip8_key) = self.get_chip8_key(ch) {
-                self.waiting_for_key = false;
-                return Ok(chip8_key);
+                return Some(chip8_key);
             }
         }
 
-        // No key available - in a real implementation, this would block
-        // For now, we return an error to indicate no key is available
-        Err(InputError::InvalidKey { key: 0xFF })
+        // No key available - perfectly normal condition
+        None
     }
 
-    fn update(&mut self) -> Result<(), InputError> {
+    fn update(&mut self) {
         // In a real terminal implementation, this would poll for keyboard events
         // For now, this is a no-op - input is driven by external calls to process_char_input
-        Ok(())
     }
 
     fn get_pressed_keys(&self) -> Vec<ChipKey> {
@@ -407,20 +400,20 @@ pub struct InputStats {
 #[derive(Debug, Clone)]
 pub struct MockInput {
     key_states: [bool; 16],
-    key_queue: Vec<ChipKey>,
+    key_queue: VecDeque<ChipKey>,
 }
 
 impl MockInput {
     pub fn new() -> Self {
         Self {
             key_states: [false; 16],
-            key_queue: Vec::new(),
+            key_queue: VecDeque::new(),
         }
     }
 
     pub fn press_key(&mut self, key: ChipKey) {
         self.key_states[key.to_u8() as usize] = true;
-        self.key_queue.push(key);
+        self.key_queue.push_back(key);
     }
 
     pub fn press_key_u8(&mut self, key: u8) -> Result<(), InputError> {
@@ -464,16 +457,12 @@ impl InputBus for MockInput {
         self.key_states[key.to_u8() as usize]
     }
 
-    fn wait_for_key_press(&mut self) -> Result<ChipKey, InputError> {
-        if let Some(key) = self.key_queue.pop() {
-            Ok(key)
-        } else {
-            Err(InputError::InvalidKey { key: 0xFF })
-        }
+    fn try_get_key_press(&mut self) -> Option<ChipKey> {
+        self.key_queue.pop_front()
     }
 
-    fn update(&mut self) -> Result<(), InputError> {
-        Ok(())
+    fn update(&mut self) {
+        // No-op for mock
     }
 
     fn get_pressed_keys(&self) -> Vec<ChipKey> {
@@ -688,25 +677,43 @@ mod tests {
 
         // Test key queue - pressing key adds to both state and queue
         mock.press_key(ChipKey::Key3);
-        assert_eq!(mock.wait_for_key_press().unwrap(), ChipKey::Key3);
+        assert_eq!(mock.try_get_key_press().unwrap(), ChipKey::Key3);
 
         // Queue should be empty now
-        assert!(mock.wait_for_key_press().is_err());
+        assert!(mock.try_get_key_press().is_none());
     }
 
     #[test]
-    fn test_wait_for_key_press() {
+    fn test_try_get_key_press() {
         let mut input = Input::new();
 
         // Add key to buffer
         input.process_char_input('w'); // Maps to Key5
 
         // Should return the key (either from pressed state or buffer)
-        assert_eq!(input.wait_for_key_press().unwrap(), ChipKey::Key5);
+        assert_eq!(input.try_get_key_press().unwrap(), ChipKey::Key5);
 
-        // Release the key and clear buffer, then should return error
+        // Release the key and clear buffer, then should return None
         input.process_char_release('w');
         input.clear_input_buffer();
-        assert!(input.wait_for_key_press().is_err());
+        assert!(input.try_get_key_press().is_none());
+    }
+
+    #[test]
+    fn test_mock_input_fifo_behavior() {
+        let mut mock = MockInput::new();
+
+        // Press keys in order: A, B, C
+        mock.press_key(ChipKey::KeyA);
+        mock.press_key(ChipKey::KeyB);
+        mock.press_key(ChipKey::KeyC);
+
+        // Should return keys in FIFO order (first in, first out)
+        assert_eq!(mock.try_get_key_press().unwrap(), ChipKey::KeyA);
+        assert_eq!(mock.try_get_key_press().unwrap(), ChipKey::KeyB);
+        assert_eq!(mock.try_get_key_press().unwrap(), ChipKey::KeyC);
+
+        // Queue should be empty now
+        assert!(mock.try_get_key_press().is_none());
     }
 }
