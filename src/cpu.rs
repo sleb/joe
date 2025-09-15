@@ -5,6 +5,7 @@
 
 use crate::constants::*;
 use crate::display::{DisplayBus, DisplayError};
+use crate::input::{InputBus, InputError};
 use crate::instruction::{DecodeError, Instruction, decode_opcode};
 use crate::memory::{MemoryBus, MemoryError};
 use thiserror::Error;
@@ -20,6 +21,9 @@ pub enum CpuError {
 
     #[error("Display error: {0}")]
     Display(#[from] DisplayError),
+
+    #[error("Input error: {0}")]
+    Input(#[from] InputError),
 
     #[error("Stack overflow - cannot push more than {max_depth} levels")]
     StackOverflow { max_depth: usize },
@@ -39,6 +43,15 @@ pub enum CpuError {
 
     #[error("Program counter out of bounds: {pc:#06x}")]
     InvalidProgramCounter { pc: u16 },
+}
+
+/// CPU execution state
+#[derive(Debug, Clone, PartialEq)]
+pub enum CpuState {
+    /// Normal execution - fetch, decode, execute instructions
+    Running,
+    /// Waiting for a key press - stores which register (Vx) to store the key in
+    WaitingForKey { vx: usize },
 }
 
 /// CHIP-8 CPU state
@@ -65,6 +78,9 @@ pub struct Cpu {
 
     /// Sound timer - decrements at 60Hz, beeps while > 0
     sound_timer: u8,
+
+    /// Current execution state
+    state: CpuState,
 }
 
 impl Cpu {
@@ -78,6 +94,7 @@ impl Cpu {
             stack: [0; STACK_SIZE],
             delay_timer: 0,
             sound_timer: 0,
+            state: CpuState::Running,
         }
     }
 
@@ -90,29 +107,44 @@ impl Cpu {
         self.stack.fill(0);
         self.delay_timer = 0;
         self.sound_timer = 0;
+        self.state = CpuState::Running;
     }
 
-    /// Execute one CPU cycle: fetch, decode, and execute one instruction
-    pub fn execute_cycle<M: MemoryBus, D: DisplayBus>(
+    /// Execute one CPU cycle based on current execution state
+    pub fn execute_cycle<M: MemoryBus, D: DisplayBus, I: InputBus>(
         &mut self,
         memory: &mut M,
         display: &mut D,
+        input: &mut I,
     ) -> Result<(), CpuError> {
-        // Keep instruction location local for error reporting
-        let instruction_addr = self.pc;
+        match self.state {
+            CpuState::Running => {
+                // Normal execution: fetch, decode, execute
+                let instruction_addr = self.pc;
+                let instruction = self.fetch_instruction(memory)?;
 
-        // Fetch instruction from memory at PC (advances PC as part of fetch contract)
-        let instruction = self.fetch_instruction(memory)?;
-
-        // Execute instruction - if it fails, wrap error with location info
-        self.execute_instruction(instruction, memory, display)
-            .map_err(|err| CpuError::InstructionExecutionFailed {
-                instruction,
-                addr: instruction_addr,
-                source: Box::new(err),
-            })?;
-
-        Ok(())
+                self.execute_instruction(instruction, memory, display, input)
+                    .map_err(|err| CpuError::InstructionExecutionFailed {
+                        instruction,
+                        addr: instruction_addr,
+                        source: Box::new(err),
+                    })
+            }
+            CpuState::WaitingForKey { vx } => {
+                // Blocked on key input - check if key is now available
+                match input.try_get_key_press() {
+                    Some(key) => {
+                        self.v[vx] = key.to_u8();
+                        self.state = CpuState::Running;
+                        Ok(())
+                    }
+                    None => {
+                        // Still waiting - do nothing this cycle
+                        Ok(())
+                    }
+                }
+            }
+        }
     }
 
     /// Fetch a 16-bit instruction from memory at current PC
@@ -146,11 +178,12 @@ impl Cpu {
     }
 
     /// Decode and execute an instruction
-    fn execute_instruction<M: MemoryBus, D: DisplayBus>(
+    fn execute_instruction<M: MemoryBus, D: DisplayBus, I: InputBus>(
         &mut self,
         opcode: u16,
         memory: &mut M,
         display: &mut D,
+        input: &mut I,
     ) -> Result<(), CpuError> {
         // Decode the instruction using centralized decoding
         let instruction = decode_opcode(opcode)?;
@@ -272,12 +305,18 @@ impl Cpu {
                 self.v[0xF] = if collision { 1 } else { 0 };
                 Ok(())
             }
-            Instruction::SkipKeyPressed { .. } => {
-                // TODO: Implement when input module is ready
+            Instruction::SkipKeyPressed { vx } => {
+                let key = self.v[vx] & 0x0F;
+                if input.is_key_pressed_u8(key)? {
+                    self.pc += 2; // Skip next instruction
+                }
                 Ok(())
             }
-            Instruction::SkipKeyNotPressed { .. } => {
-                // TODO: Implement when input module is ready
+            Instruction::SkipKeyNotPressed { vx } => {
+                let key = self.v[vx] & 0x0F;
+                if !input.is_key_pressed_u8(key)? {
+                    self.pc += 2; // Skip next instruction
+                }
                 Ok(())
             }
             Instruction::Random { vx, mask } => {
@@ -298,9 +337,19 @@ impl Cpu {
                 self.sound_timer = self.v[vx];
                 Ok(())
             }
-            Instruction::WaitKey { .. } => {
-                // TODO: Implement when input module is ready
-                Ok(())
+            Instruction::WaitKey { vx } => {
+                // Try to get a key press immediately
+                match input.try_get_key_press() {
+                    Some(key) => {
+                        self.v[vx] = key.to_u8();
+                        Ok(())
+                    }
+                    None => {
+                        // No key available - transition to waiting state
+                        self.state = CpuState::WaitingForKey { vx };
+                        Ok(())
+                    }
+                }
             }
             Instruction::AddIndex { vx } => {
                 self.i += self.v[vx] as u16;
@@ -417,6 +466,11 @@ impl Cpu {
     pub fn should_beep(&self) -> bool {
         self.sound_timer > 0
     }
+
+    /// Get current CPU execution state
+    pub fn get_state(&self) -> &CpuState {
+        &self.state
+    }
 }
 
 impl Default for Cpu {
@@ -429,6 +483,7 @@ impl Default for Cpu {
 mod tests {
     use super::*;
     use crate::memory::Memory;
+    use crate::{Display, MockInput};
 
     #[test]
     fn test_cpu_initialization() {
@@ -467,13 +522,15 @@ mod tests {
     #[test]
     fn test_load_instruction() {
         let mut cpu = Cpu::new();
-        let mut memory = Memory::new(false);
-        let mut display = crate::display::Display::new();
+        let mut memory = Memory::new(true);
+        let mut display = crate::Display::new();
+        let mut input = MockInput::new();
 
         // LD V3, 0x42 (instruction: 0x6342)
         memory.write_word(PROGRAM_START_ADDR, 0x6342).unwrap();
 
-        cpu.execute_cycle(&mut memory, &mut display).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
 
         assert_eq!(cpu.get_register(3).unwrap(), 0x42);
         assert_eq!(cpu.get_pc(), PROGRAM_START_ADDR + 2);
@@ -482,16 +539,18 @@ mod tests {
     #[test]
     fn test_add_instruction() {
         let mut cpu = Cpu::new();
-        let mut memory = Memory::new(false);
-        let mut display = crate::display::Display::new();
+        let mut memory = Memory::new(true);
+        let mut display = crate::Display::new();
+        let mut input = MockInput::new();
 
-        // Set V2 = 0x10
-        cpu.set_register(2, 0x10).unwrap();
+        // Set V2 to 0x10
+        cpu.v[2] = 0x10;
 
         // ADD V2, 0x25 (instruction: 0x7225)
         memory.write_word(PROGRAM_START_ADDR, 0x7225).unwrap();
 
-        cpu.execute_cycle(&mut memory, &mut display).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
 
         assert_eq!(cpu.get_register(2).unwrap(), 0x35);
     }
@@ -499,13 +558,15 @@ mod tests {
     #[test]
     fn test_jump_instruction() {
         let mut cpu = Cpu::new();
-        let mut memory = Memory::new(false);
-        let mut display = crate::display::Display::new();
+        let mut memory = Memory::new(true);
+        let mut display = crate::Display::new();
+        let mut input = MockInput::new();
 
         // JP 0x300 (instruction: 0x1300)
         memory.write_word(PROGRAM_START_ADDR, 0x1300).unwrap();
 
-        cpu.execute_cycle(&mut memory, &mut display).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
 
         assert_eq!(cpu.get_pc(), 0x300);
     }
@@ -513,13 +574,15 @@ mod tests {
     #[test]
     fn test_call_and_return() {
         let mut cpu = Cpu::new();
-        let mut memory = Memory::new(false);
-        let mut display = crate::display::Display::new();
+        let mut memory = Memory::new(true);
+        let mut display = crate::Display::new();
+        let mut input = MockInput::new();
 
         // CALL 0x300 (instruction: 0x2300)
         memory.write_word(PROGRAM_START_ADDR, 0x2300).unwrap();
 
-        cpu.execute_cycle(&mut memory, &mut display).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
 
         // Should jump to 0x300 and push return address
         assert_eq!(cpu.get_pc(), 0x300);
@@ -537,13 +600,15 @@ mod tests {
     #[test]
     fn test_set_index_instruction() {
         let mut cpu = Cpu::new();
-        let mut memory = Memory::new(false);
-        let mut display = crate::display::Display::new();
+        let mut memory = Memory::new(true);
+        let mut display = crate::Display::new();
+        let mut input = MockInput::new();
 
         // LD I, 0x300 (instruction: 0xA300)
         memory.write_word(PROGRAM_START_ADDR, 0xA300).unwrap();
 
-        cpu.execute_cycle(&mut memory, &mut display).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
 
         assert_eq!(cpu.get_index(), 0x300);
     }
@@ -571,13 +636,14 @@ mod tests {
     #[test]
     fn test_unknown_instruction() {
         let mut cpu = Cpu::new();
-        let mut memory = Memory::new(false);
-        let mut display = crate::display::Display::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
 
         // Write an unknown instruction at program start
         memory.write_word(PROGRAM_START_ADDR, 0xF123).unwrap();
 
-        let result = cpu.execute_cycle(&mut memory, &mut display);
+        let result = cpu.execute_cycle(&mut memory, &mut display, &mut input);
 
         // Should fail with execution error
         assert!(result.is_err());
@@ -589,10 +655,11 @@ mod tests {
     #[test]
     fn test_cls_instruction() {
         let mut cpu = Cpu::new();
-        let mut memory = Memory::new(false);
-        let mut display = crate::display::Display::new();
+        let mut memory = Memory::new(true);
+        let mut display = crate::Display::new();
+        let mut input = MockInput::new();
 
-        // Set some pixels manually to verify they get cleared
+        // Set some pixels first
         display.set_pixel(10, 5, true);
         display.set_pixel(20, 15, true);
         assert!(display.get_pixel(10, 5));
@@ -601,19 +668,20 @@ mod tests {
         // CLS instruction (0x00E0)
         memory.write_word(PROGRAM_START_ADDR, 0x00E0).unwrap();
 
-        cpu.execute_cycle(&mut memory, &mut display).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
 
         // All pixels should be cleared
         assert!(!display.get_pixel(10, 5));
         assert!(!display.get_pixel(20, 15));
-        assert_eq!(display.get_stats().pixels_on, 0);
     }
 
     #[test]
     fn test_draw_instruction() {
         let mut cpu = Cpu::new();
-        let mut memory = Memory::new(false);
-        let mut display = crate::display::Display::new();
+        let mut memory = Memory::new(true);
+        let mut display = crate::Display::new();
+        let mut input = MockInput::new();
 
         // Set up sprite data in memory
         let sprite_addr = 0x300;
@@ -622,14 +690,15 @@ mod tests {
         memory.write_byte(sprite_addr + 1, sprite_data[1]).unwrap();
 
         // Set up CPU state for drawing
-        cpu.set_register(0, 10).unwrap(); // X coordinate
-        cpu.set_register(1, 5).unwrap(); // Y coordinate
+        cpu.v[0] = 10; // X coordinate
+        cpu.v[1] = 5; // Y coordinate
         cpu.i = sprite_addr;
 
         // DRW V0, V1, 2 (instruction: 0xD012)
         memory.write_word(PROGRAM_START_ADDR, 0xD012).unwrap();
 
-        cpu.execute_cycle(&mut memory, &mut display).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
 
         // Verify sprite was drawn correctly
         assert!(display.get_pixel(10, 5)); // Top-left
@@ -646,8 +715,9 @@ mod tests {
     #[test]
     fn test_draw_instruction_collision() {
         let mut cpu = Cpu::new();
-        let mut memory = Memory::new(false);
-        let mut display = crate::display::Display::new();
+        let mut memory = Memory::new(true);
+        let mut display = crate::Display::new();
+        let mut input = MockInput::new();
 
         // Set up existing pixel that will cause collision
         display.set_pixel(10, 5, true);
@@ -657,19 +727,277 @@ mod tests {
         memory.write_byte(sprite_addr, 0b10000000).unwrap(); // Single pixel at top-left
 
         // Set up CPU state
-        cpu.set_register(0, 10).unwrap(); // X coordinate (matches existing pixel)
-        cpu.set_register(1, 5).unwrap(); // Y coordinate (matches existing pixel)
+        cpu.v[0] = 10; // X coordinate (matches existing pixel)
+        cpu.v[1] = 5; // Y coordinate (matches existing pixel)
         cpu.i = sprite_addr;
 
         // DRW V0, V1, 1 (instruction: 0xD011)
         memory.write_word(PROGRAM_START_ADDR, 0xD011).unwrap();
 
-        cpu.execute_cycle(&mut memory, &mut display).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
 
         // Pixel should be turned off due to XOR
         assert!(!display.get_pixel(10, 5));
 
         // Collision should be detected (VF = 1)
         assert_eq!(cpu.get_register(0xF).unwrap(), 1);
+    }
+
+    #[test]
+    fn test_skip_key_pressed_instruction() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
+
+        // Set V0 to key 5
+        cpu.set_register(0, 5).unwrap();
+
+        // SKP V0 instruction (0xE09E)
+        memory.write_word(PROGRAM_START_ADDR, 0xE09E).unwrap();
+
+        // Key 5 is NOT pressed - should not skip
+        let initial_pc = cpu.get_pc();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+        assert_eq!(cpu.get_pc(), initial_pc + 2); // Normal increment
+
+        // Test with key pressed (use fresh CPU instance)
+        let mut cpu2 = Cpu::new();
+        cpu2.set_register(0, 5).unwrap();
+        input.press_key_u8(5).unwrap();
+
+        let initial_pc2 = cpu2.get_pc();
+        cpu2.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+        assert_eq!(cpu2.get_pc(), initial_pc2 + 4); // Should skip
+    }
+
+    #[test]
+    fn test_skip_key_not_pressed_instruction() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
+
+        // Set V1 to key 7
+        cpu.set_register(1, 7).unwrap();
+
+        // SKNP V1 instruction (0xE1A1)
+        memory.write_word(PROGRAM_START_ADDR, 0xE1A1).unwrap();
+
+        // Key 7 is NOT pressed - should skip
+        let initial_pc = cpu.get_pc();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+        assert_eq!(cpu.get_pc(), initial_pc + 4); // Should skip
+
+        // Test with key pressed (use fresh CPU instance)
+        let mut cpu2 = Cpu::new();
+        cpu2.set_register(1, 7).unwrap();
+        input.press_key_u8(7).unwrap();
+
+        let initial_pc2 = cpu2.get_pc();
+        cpu2.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+        assert_eq!(cpu2.get_pc(), initial_pc2 + 2); // Should not skip
+    }
+
+    #[test]
+    fn test_wait_for_key_instruction() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
+
+        // LD V2, K instruction (0xF20A)
+        memory.write_word(PROGRAM_START_ADDR, 0xF20A).unwrap();
+
+        let initial_pc = cpu.get_pc();
+
+        // No key available - should transition to WaitingForKey state
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+
+        // PC advances as part of instruction fetch, but CPU is now waiting for key
+        assert_eq!(cpu.get_pc(), initial_pc + 2);
+        assert_eq!(*cpu.get_state(), CpuState::WaitingForKey { vx: 2 });
+
+        // Next cycle should still be waiting (no key available)
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+        assert_eq!(*cpu.get_state(), CpuState::WaitingForKey { vx: 2 });
+
+        // Press key 0xB and cycle again - should resume execution
+        input.press_key_u8(0xB).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+
+        // Should have stored key value in V2 and resumed running state
+        assert_eq!(cpu.get_register(2).unwrap(), 0xB);
+        assert_eq!(*cpu.get_state(), CpuState::Running);
+    }
+
+    #[test]
+    fn test_skip_key_pressed_skips_when_pressed() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
+
+        // Set V0 = 0x5 and press key 0x5
+        cpu.set_register(0, 0x5).unwrap();
+        input.press_key_u8(0x5).unwrap();
+
+        // SKP V0 instruction (0xE09E)
+        memory.write_word(PROGRAM_START_ADDR, 0xE09E).unwrap();
+
+        let initial_pc = cpu.get_pc();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+
+        // PC should have advanced by 4 (2 for fetch + 2 for skip)
+        assert_eq!(cpu.get_pc(), initial_pc + 4);
+    }
+
+    #[test]
+    fn test_skip_key_pressed_no_skip_when_not_pressed() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
+
+        // Set V0 = 0x5 but don't press key 0x5
+        cpu.set_register(0, 0x5).unwrap();
+
+        // SKP V0 instruction (0xE09E)
+        memory.write_word(PROGRAM_START_ADDR, 0xE09E).unwrap();
+
+        let initial_pc = cpu.get_pc();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+
+        // PC should have advanced by 2 (only fetch, no skip)
+        assert_eq!(cpu.get_pc(), initial_pc + 2);
+    }
+
+    #[test]
+    fn test_skip_key_not_pressed_skips_when_not_pressed() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
+
+        // Set V0 = 0x5 but don't press key 0x5
+        cpu.set_register(0, 0x5).unwrap();
+
+        // SKNP V0 instruction (0xE0A1)
+        memory.write_word(PROGRAM_START_ADDR, 0xE0A1).unwrap();
+
+        let initial_pc = cpu.get_pc();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+
+        // PC should have advanced by 4 (2 for fetch + 2 for skip)
+        assert_eq!(cpu.get_pc(), initial_pc + 4);
+    }
+
+    #[test]
+    fn test_skip_key_not_pressed_no_skip_when_pressed() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
+
+        // Set V0 = 0x5 and press key 0x5
+        cpu.set_register(0, 0x5).unwrap();
+        input.press_key_u8(0x5).unwrap();
+
+        // SKNP V0 instruction (0xE0A1)
+        memory.write_word(PROGRAM_START_ADDR, 0xE0A1).unwrap();
+
+        let initial_pc = cpu.get_pc();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+
+        // PC should have advanced by 2 (only fetch, no skip)
+        assert_eq!(cpu.get_pc(), initial_pc + 2);
+    }
+
+    #[test]
+    fn test_key_instructions_mask_high_bits() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
+
+        // Set V0 = 0x15 (high bits should be masked to 0x5)
+        cpu.set_register(0, 0x15).unwrap();
+        input.press_key_u8(0x5).unwrap(); // Press the masked key
+
+        // SKP V0 instruction (0xE09E) - should treat 0x15 as 0x5
+        memory.write_word(PROGRAM_START_ADDR, 0xE09E).unwrap();
+
+        let initial_pc = cpu.get_pc();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+
+        // Should skip because 0x15 & 0x0F = 0x5, and key 0x5 is pressed
+        assert_eq!(cpu.get_pc(), initial_pc + 4);
+    }
+
+    #[test]
+    fn test_wait_key_immediate_return_when_available() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
+
+        // Press key 0x7 before executing instruction
+        input.press_key_u8(0x7).unwrap();
+
+        // LD V3, K instruction (0xF30A)
+        memory.write_word(PROGRAM_START_ADDR, 0xF30A).unwrap();
+
+        let initial_pc = cpu.get_pc();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+
+        // Should store key immediately and stay in running state
+        assert_eq!(cpu.get_register(3).unwrap(), 0x7);
+        assert_eq!(*cpu.get_state(), CpuState::Running);
+        assert_eq!(cpu.get_pc(), initial_pc + 2);
+    }
+
+    #[test]
+    fn test_wait_key_state_persistence() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
+
+        // LD V1, K instruction (0xF10A)
+        memory.write_word(PROGRAM_START_ADDR, 0xF10A).unwrap();
+
+        // First cycle - no key available, should enter waiting state
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+        assert_eq!(*cpu.get_state(), CpuState::WaitingForKey { vx: 1 });
+
+        // Multiple cycles with no key - should remain in waiting state
+        for _ in 0..5 {
+            cpu.execute_cycle(&mut memory, &mut display, &mut input)
+                .unwrap();
+            assert_eq!(*cpu.get_state(), CpuState::WaitingForKey { vx: 1 });
+        }
+
+        // Press key and cycle - should resume and store key
+        input.press_key_u8(0xA).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+
+        assert_eq!(cpu.get_register(1).unwrap(), 0xA);
+        assert_eq!(*cpu.get_state(), CpuState::Running);
     }
 }

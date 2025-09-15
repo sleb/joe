@@ -20,19 +20,20 @@
 //! - [`Cpu`] - Instruction execution and register management ✅
 //! - [`Display`] - 64x32 framebuffer with sprite operations ✅
 //! - [`Renderer`] - ASCII and headless rendering backends ✅
-//! - [`Input`] - 16-key keypad handling (TODO)
+//! - [`Input`] - 16-key keypad handling ✅
 //! - [`Audio`] - Sound timer and beep generation (TODO)
 //! - [`Emulator`] - Main coordination and timing (TODO)
 //!
 //! # Quick Start
 //!
 //! ```rust,no_run
-//! use joe::{Memory, Cpu, Display, AsciiRenderer, Renderer};
+//! use joe::{Memory, Cpu, Display, Input, AsciiRenderer, Renderer};
 //!
 //! // Create emulator components
 //! let mut memory = Memory::new(true);
 //! let mut cpu = Cpu::new();
 //! let mut display = Display::new();
+//! let mut input = Input::new();
 //! let renderer = AsciiRenderer;
 //!
 //! // Load a ROM file
@@ -40,7 +41,7 @@
 //! memory.load_rom(&rom_data).unwrap();
 //!
 //! // Execute instructions
-//! cpu.execute_cycle(&mut memory, &mut display).unwrap();
+//! cpu.execute_cycle(&mut memory, &mut display, &mut input).unwrap();
 //!
 //! // Render the display
 //! renderer.render(&display);
@@ -64,28 +65,29 @@
 //! - ✅ ASCII terminal rendering for development
 //! - ✅ Trait-based architecture for extensible rendering backends
 //! - ✅ Comprehensive error handling with rich context
-//! - 🚧 16-key hexadecimal keypad input (TODO)
+//! - ✅ 16-key hexadecimal keypad input with customizable key mapping
 //! - 🚧 Sound timer with beep generation (TODO)
 //! - 🚧 Complete instruction set (remaining opcodes)
 
 pub mod cpu;
 pub mod disassembler;
 pub mod display;
+pub mod input;
 pub mod instruction;
 pub mod memory;
 pub mod rom_loader;
-// pub mod input;
 // pub mod audio;
 // pub mod emulator;
 
 // Re-export main types for convenience
-pub use cpu::{Cpu, CpuError};
+pub use cpu::{Cpu, CpuError, CpuState};
 pub use disassembler::{
     InstructionAnalysis, analyze_instruction_usage, disassemble_rom, print_disassembly,
 };
 pub use display::{
     AsciiRenderer, Display, DisplayBus, DisplayError, DisplayStats, HeadlessRenderer, Renderer,
 };
+pub use input::{ChipKey, Input, InputBus, InputError, InputStats, MockInput};
 pub use instruction::{DecodeError, Instruction, decode_opcode};
 pub use memory::{Memory, MemoryBus, MemoryError, MemoryStats};
 pub use rom_loader::{RomLoaderConfig, RomSource, load_rom_data, load_rom_data_with_config};

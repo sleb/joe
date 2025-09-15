@@ -1,5 +1,7 @@
 use clap::Parser;
-use joe::{AsciiRenderer, Cpu, Display, Memory, Renderer, RomSource, load_rom_data};
+use joe::{
+    AsciiRenderer, Cpu, Display, Input, InputBus, Memory, Renderer, RomSource, load_rom_data,
+};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -66,6 +68,7 @@ impl RunCommand {
         let mut memory = Memory::new(write_protection);
         let mut cpu = Cpu::new();
         let mut display = Display::new();
+        let mut input = Input::new();
 
         // Load ROM into memory
         memory.load_rom(&rom_data)?;
@@ -128,8 +131,11 @@ impl RunCommand {
                 );
             }
 
+            // Poll input backend (allow non-blocking input backends to update state)
+            input.update();
+
             // Execute one CPU cycle
-            match cpu.execute_cycle(&mut memory, &mut display) {
+            match cpu.execute_cycle(&mut memory, &mut display, &mut input) {
                 Ok(()) => {
                     // Check for max cycles limit (if set)
                     if self.max_cycles > 0 && cycles >= self.max_cycles {
