@@ -27,7 +27,7 @@ Try it yourself: `joe run <ROM>`
 
 ```bash
 # Install the latest release from GitHub
-cargo install --git https://github.com/sleb/joe --tag v0.2.0
+cargo install --git https://github.com/sleb/joe --tag v0.3.0 --force
 
 # Verify installation
 joe version
@@ -37,11 +37,11 @@ joe version
 
 ```bash
 # Update to the latest release
-cargo install --git https://github.com/sleb/joe --tag v0.2.0 --force
+cargo install --git https://github.com/sleb/joe --tag v0.3.0
 
 # Or uninstall and reinstall
 cargo uninstall joe
-cargo install --git https://github.com/sleb/joe --tag v0.2.0
+cargo install --git https://github.com/sleb/joe --tag v0.3.0
 ```
 
 ### From Specific Version
@@ -83,7 +83,7 @@ If you previously installed this emulator as `octo`, you'll need to migrate to t
 cargo uninstall octo
 
 # 2. Install the new version
-cargo install --git https://github.com/sleb/joe --tag v0.2.0
+cargo install --git https://github.com/sleb/joe --tag v0.3.0
 
 # 3. Update any scripts or aliases
 # Old: octo run rom.ch8
@@ -101,12 +101,13 @@ cargo install --git https://github.com/sleb/joe --tag v0.2.0
 - Understood emulation and virtual machine architecture
 - Created a clean, well-documented codebase with professional CLI
 - Support loading and running classic CHIP-8 ROMs with real-time display
+- Built complete interactive input system for CHIP-8 games
 
 **🎯 Next Objectives:**
 
-- Add input system for interactive games
 - Implement audio output for sound effects
 - Create GUI interface for better user experience
+- Add debugging tools and save states
 - Achieve compatibility with more classic CHIP-8 ROMs
 
 ## CHIP-8 System Specifications
@@ -116,7 +117,7 @@ cargo install --git https://github.com/sleb/joe --tag v0.2.0
 - **CPU**: Custom 8-bit processor
 - **Memory**: 4KB RAM (4096 bytes)
 - **Display**: 64x32 pixel monochrome screen
-- **Input**: 16-key hexadecimal keypad
+- **Input**: 16-key hexadecimal keypad (✅ implemented)
 - **Sound**: Single tone beeper
 - **Timers**: 60Hz delay timer and sound timer
 
@@ -149,7 +150,7 @@ cargo install --git https://github.com/sleb/joe --tag v0.2.0
 - Input operations
 - Timer operations
 
-## Quick Start
+### Quick Start
 
 To see the emulator in action:
 
@@ -158,7 +159,24 @@ To see the emulator in action:
 joe run <ROM>
 ```
 
-You'll see the ROM being executed in real-time with ASCII art in your terminal! The emulator shows continuous display updates as the ROM executes, just like a real CHIP-8 system. Use `Ctrl+C` to stop execution and see statistics.
+You'll see the ROM being executed in real-time with ASCII art in your terminal! The emulator shows continuous display updates as the ROM executes, just like a real CHIP-8 system. Interactive games now respond to keyboard input using the QWERTY mapping below. Use `Ctrl+C` to stop execution and see statistics.
+
+#### Keyboard Mapping
+
+The 16-key CHIP-8 keypad maps to your QWERTY keyboard as follows:
+
+```
+CHIP-8 Keypad:     Keyboard Mapping:
+┌─┬─┬─┬─┐          ┌─┬─┬─┬─┐
+│1│2│3│C│          │1│2│3│4│
+├─┼─┼─┼─┤          ├─┼─┼─┼─┤
+│4│5│6│D│    →     │Q│W│E│R│
+├─┼─┼─┼─┤          ├─┼─┼─┼─┤
+│7│8│9│E│          │A│S│D│F│
+├─┼─┼─┼─┤          ├─┼─┼─┼─┤
+│A│0│B│F│          │Z│X│C│V│
+└─┴─┴─┴─┘          └─┴─┴─┴─┘
+```
 
 See the [Looking for ROMs](#looking-for-roms) section below for test ROMs you can try.
 
@@ -167,7 +185,7 @@ See the [Looking for ROMs](#looking-for-roms) section below for test ROMs you ca
 ### Running ROMs
 
 ```bash
-# Run ROM with default settings (continuous display updates)
+# Run ROM with default settings (interactiveontinuous display updates)
 joe run <ROM>
 
 # Run with slower updates to see the logo being drawn step by step
@@ -290,7 +308,16 @@ joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-lo
 - Comprehensive instruction analysis and disassembly
 - Mnemonic generation for debugging
 
-#### 6. Rendering (`src/display.rs`) ✅
+#### 6. Input System (`src/input.rs`) ✅
+
+- 16-key hexadecimal keypad support with QWERTY keyboard mapping
+- Type-safe ChipKey enum eliminating boundary checking errors
+- InputBus trait abstraction for pluggable input backends
+- Complete implementation of SKP Vx, SKNP Vx, and LD Vx, K instructions
+- CPU state machine with authentic blocking behavior for key waits
+- MockInput for deterministic testing and comprehensive test coverage
+
+#### 7. Rendering (`src/display.rs`) ✅
 
 - ASCII terminal renderer for development
 - Headless renderer for testing
@@ -299,39 +326,36 @@ joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-lo
 
 ## Current Status & Next Steps
 
-### ✅ **Completed: Core CHIP-8 Emulator (v0.2.0+)**
+### ✅ **Completed: Interactive CHIP-8 Emulator (v0.3.0+)**
 
 **What Works Now:**
 
 - **Complete instruction set**: All 35 CHIP-8 opcodes implemented and tested
-- **Full emulation**: ROM loading, execution, display, and statistics
+- **Interactive input system**: 16-key keypad with QWERTY mapping for games
+- **Full emulation**: ROM loading, execution, display, input, and statistics
 - **Professional CLI**: `joe run` and `joe analyze` commands with comprehensive options
 - **Real-time display**: Continuous ASCII rendering with smart update logic
 - **Memory system**: 4KB RAM, font data, ROM loading with validation
 - **Display system**: 64x32 framebuffer with XOR sprite drawing and collision detection
-- **CPU architecture**: Complete register management, stack, timers, program counter
+- **CPU architecture**: Complete register management, stack, timers, state machine
 - **Signal handling**: Graceful Ctrl+C with statistics display
 - **Multiple renderers**: ASCII terminal and headless modes
-- **Testing**: Comprehensive unit and integration test coverage
+- **Testing**: Comprehensive unit and integration test coverage (68 tests)
 
 **Runs Real ROMs:**
 
 - IBM Logo ROM executes perfectly with real-time display updates
+- Interactive CHIP-8 games with keyboard input support
 - Instruction analysis and disassembly tools
 - Statistics tracking and performance monitoring
 
 ### 🚧 **Next Phase: Enhanced Features**
 
-**Input System (High Priority):**
-
-- [ ] 16-key keypad input handling
-- [ ] Keyboard mapping to CHIP-8 keypad
-- [ ] Key press/release detection for input instructions
-
-**Audio System:**
+**Audio System (High Priority):**
 
 - [ ] Sound timer implementation with actual audio output
 - [ ] Beep generation (simple tone or platform audio)
+- [ ] Cross-platform audio backend support
 
 **Enhanced User Experience:**
 
@@ -529,7 +553,6 @@ A 0 B F       Z X C V
 
 ### 🎯 **Next Major Features**
 
-- **Input System** - 16-key keypad support for interactive games
 - **Audio System** - Sound timer implementation and beep generation
 - **GUI Interface** - Visual rendering with SDL/pixels integration
 - **Enhanced Tools** - Debugging features, save states, configuration

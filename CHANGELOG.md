@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-09-15
+
+### Added
+
+- **Complete CHIP-8 Input System** - Full 16-key hexadecimal keypad support
+- **Interactive Game Support** - Emulator now handles input-driven CHIP-8 programs
+- **CPU State Machine Architecture** - Authentic blocking behavior for `LD Vx, K` instruction
+- **QWERTY Keyboard Mapping** - Standard keyboard layout maps to CHIP-8 keypad:
+  ```
+  CHIP-8 Keypad:     Keyboard Mapping:
+  ┌─┬─┬─┬─┐          ┌─┬─┬─┬─┐
+  │1│2│3│C│          │1│2│3│4│
+  ├─┼─┼─┼─┤          ├─┼─┼─┼─┤
+  │4│5│6│D│    →     │Q│W│E│R│
+  ├─┼─┼─┼─┤          ├─┼─┼─┤
+  │7│8│9│E│          │A│S│D│F│
+  ├─┼─┼─┼─┤          ├─┼─┼─┼─┤
+  │A│0│B│F│          │Z│X│C│V│
+  └─┴─┴─┴─┘          └─┴─┴─┴─┘
+  ```
+- **All Input Instructions** - Complete implementation of SKP Vx, SKNP Vx, and LD Vx, K
+- **Type-Safe Input API** - `ChipKey` enum eliminates boundary checking and improves reliability
+- **MockInput for Testing** - Deterministic input simulation for comprehensive test coverage
+- **Input Statistics** - Track key press counts and input activity
+- **FIFO Key Buffering** - Proper event ordering with `VecDeque` for realistic input behavior
+
+### Changed
+
+- **CPU Architecture** - Replaced PC-rewind retry mechanism with explicit state machine
+- **Input Polling** - Clean `Option<ChipKey>` semantics instead of error-based polling
+- **Error Handling** - Separate "no key available" (normal) from input errors (exceptional)
+- **Key Validation** - Mask Vx values to 0x0F in key instructions to handle unsanitized ROMs
+- **CLI Integration** - Added `input.update()` calls for backend polling during execution
+
+### Technical
+
+- Added `CpuState` enum with `Running` and `WaitingForKey { vx }` states
+- Introduced `InputBus` trait for pluggable input backends
+- Replaced `wait_for_key_press() -> Result` with `try_get_key_press() -> Option`
+- Enhanced test coverage: 68 tests (up from 60) including comprehensive input scenarios
+- Implemented authentic CHIP-8 blocking behavior where CPU stops during key wait
+- Added CPU-level tests for SKP/SKNP skip logic and LD Vx, K state persistence
+
+### API Additions
+
+- `Input` - Main input system with QWERTY mapping
+- `ChipKey` - Type-safe key enumeration (Key0-KeyF)
+- `InputBus` trait - Abstraction for different input backends
+- `InputError` - Input-specific error types
+- `InputStats` - Input activity statistics
+- `MockInput` - Testing input implementation
+- `CpuState` - CPU execution state inspection
+
+**Breaking**: None - all changes are backward compatible additions
+
+**Milestone**: This release enables interactive CHIP-8 games and completes the core emulation functionality. The emulator now supports the full CHIP-8 experience: graphics, input, and program execution.
+
 ## [0.2.0] - 2025-09-14
 
 **🚨 BREAKING CHANGES - Migration Required**
@@ -201,7 +258,8 @@ cargo install --git https://github.com/sleb/joe --tag v0.2.0
 - Created chrono-based build timestamp generation
 - Set up automatic git hash, branch, and dirty status detection
 
-[Unreleased]: https://github.com/sleb/octo/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/sleb/joe/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/sleb/joe/compare/v0.2.0...v0.3.0
 [0.1.5]: https://github.com/sleb/octo/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/sleb/octo/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/sleb/octo/compare/v0.1.2...v0.1.3
