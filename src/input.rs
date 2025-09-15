@@ -177,7 +177,7 @@ impl Input {
             ('v', ChipKey::KeyF),
         ];
 
-        Self::with_key_map(&default_mappings).unwrap()
+        Self::with_key_map(&default_mappings).expect("Default key mappings should be valid")
     }
 
     /// Create input system with custom key mapping
@@ -187,7 +187,10 @@ impl Input {
 
         for &(keyboard_key, chip8_key) in mappings {
             key_map.insert(keyboard_key, chip8_key);
-            key_map.insert(keyboard_key.to_uppercase().next().unwrap(), chip8_key);
+            let upper = keyboard_key.to_ascii_uppercase();
+            if upper != keyboard_key {
+                key_map.insert(upper, chip8_key);
+            }
             reverse_key_map.insert(chip8_key, keyboard_key);
         }
 
@@ -246,10 +249,9 @@ impl Input {
     pub fn process_char_input(&mut self, ch: char) {
         if let Some(chip8_key) = self.get_chip8_key(ch) {
             self.key_states[chip8_key.to_u8() as usize] = true;
+            // Add to buffer for key waiting (only when mapped)
+            self.input_buffer.push(ch);
         }
-
-        // Add to buffer for key waiting
-        self.input_buffer.push(ch);
     }
 
     /// Process key release
@@ -262,6 +264,11 @@ impl Input {
     /// Clear all pressed keys
     pub fn clear_all_keys(&mut self) {
         self.key_states = [false; 16];
+        self.input_buffer.clear();
+    }
+
+    /// Clear the input buffer (for testing)
+    pub fn clear_input_buffer(&mut self) {
         self.input_buffer.clear();
     }
 
@@ -699,7 +706,7 @@ mod tests {
 
         // Release the key and clear buffer, then should return error
         input.process_char_release('w');
-        input.input_buffer.clear();
+        input.clear_input_buffer();
         assert!(input.wait_for_key_press().is_err());
     }
 }

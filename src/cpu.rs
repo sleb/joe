@@ -711,4 +711,91 @@ mod tests {
         // Collision should be detected (VF = 1)
         assert_eq!(cpu.get_register(0xF).unwrap(), 1);
     }
+
+    #[test]
+    fn test_skip_key_pressed_instruction() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
+
+        // Set V0 to key 5
+        cpu.set_register(0, 5).unwrap();
+
+        // SKP V0 instruction (0xE09E)
+        memory.write_word(PROGRAM_START_ADDR, 0xE09E).unwrap();
+
+        // Key 5 is NOT pressed - should not skip
+        let initial_pc = cpu.get_pc();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+        assert_eq!(cpu.get_pc(), initial_pc + 2); // Normal increment
+
+        // Test with key pressed (use fresh CPU instance)
+        let mut cpu2 = Cpu::new();
+        cpu2.set_register(0, 5).unwrap();
+        input.press_key_u8(5).unwrap();
+
+        let initial_pc2 = cpu2.get_pc();
+        cpu2.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+        assert_eq!(cpu2.get_pc(), initial_pc2 + 4); // Should skip
+    }
+
+    #[test]
+    fn test_skip_key_not_pressed_instruction() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
+
+        // Set V1 to key 7
+        cpu.set_register(1, 7).unwrap();
+
+        // SKNP V1 instruction (0xE1A1)
+        memory.write_word(PROGRAM_START_ADDR, 0xE1A1).unwrap();
+
+        // Key 7 is NOT pressed - should skip
+        let initial_pc = cpu.get_pc();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+        assert_eq!(cpu.get_pc(), initial_pc + 4); // Should skip
+
+        // Test with key pressed (use fresh CPU instance)
+        let mut cpu2 = Cpu::new();
+        cpu2.set_register(1, 7).unwrap();
+        input.press_key_u8(7).unwrap();
+
+        let initial_pc2 = cpu2.get_pc();
+        cpu2.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+        assert_eq!(cpu2.get_pc(), initial_pc2 + 2); // Should not skip
+    }
+
+    #[test]
+    fn test_wait_for_key_instruction() {
+        let mut cpu = Cpu::new();
+        let mut memory = Memory::new(true);
+        let mut display = Display::new();
+        let mut input = MockInput::new();
+
+        // LD V2, K instruction (0xF20A)
+        memory.write_word(PROGRAM_START_ADDR, 0xF20A).unwrap();
+
+        let initial_pc = cpu.get_pc();
+
+        // No key available - should not advance PC (repeats instruction)
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+        assert_eq!(cpu.get_pc(), initial_pc); // PC should not advance
+
+        // Press key 0xB and try again
+        input.press_key_u8(0xB).unwrap();
+        cpu.execute_cycle(&mut memory, &mut display, &mut input)
+            .unwrap();
+
+        // Should have stored key value in V2 and advanced PC
+        assert_eq!(cpu.get_register(2).unwrap(), 0xB);
+        assert_eq!(cpu.get_pc(), initial_pc + 2); // PC should advance normally
+    }
 }
