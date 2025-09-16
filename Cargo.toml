@@ -13,6 +13,7 @@ categories = ["emulators", "games"]
 anyhow = "1.0.99"
 clap = { version = "4.5.47", features = ["derive"] }
 ctrlc = "3.4"
+ratatui = "0.29.0"
 reqwest = { version = "0.11", features = ["blocking"] }
 thiserror = "1.0"
 
