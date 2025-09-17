@@ -634,14 +634,78 @@ Once installed, use these commands:
 ```bash
 # Run CHIP-8 ROMs
 joe run <ROM>
-joe run <ROM> --verbose
+joe run <ROM> --verbose --max-cycles 1000 --cycle-delay-ms 10
 
 # Analyze ROMs
 joe analyze <ROM>
 joe analyze <ROM> --disassemble
 
+# Configuration management
+joe config init                    # Create default config file
+joe config show                    # Display current configuration
+joe config path                    # Show config file location
+joe config edit                    # Edit in default editor
+joe config reset                   # Reset to defaults
+
 # System information
 joe version
+```
+
+## Configuration
+
+The emulator supports persistent configuration files stored in OS-standard locations:
+
+- **Linux/Unix**: `~/.config/joe/config.toml`
+- **macOS**: `~/Library/Application Support/joe/config.toml`
+- **Windows**: `%APPDATA%\joe\config.toml`
+
+### Configuration File Structure
+
+```toml
+[emulator]
+default_max_cycles = 0              # 0 = unlimited
+default_cycle_delay_ms = 16         # ~60fps timing
+default_verbose = false             # Enable debug output
+default_write_protection = true     # Protect interpreter area
+
+[display]
+pixel_on_char = "██"               # Character for lit pixels
+pixel_off_char = "  "              # Character for dark pixels
+
+[input.key_mappings]
+# CHIP-8 key -> Keyboard key mapping
+0 = "X"
+1 = "1"
+2 = "2"
+3 = "3"
+4 = "Q"
+5 = "W"
+6 = "E"
+7 = "A"
+8 = "S"
+9 = "D"
+A = "Z"
+B = "C"
+C = "4"
+D = "R"
+E = "F"
+F = "V"
+```
+
+### Using Configuration
+
+1. **Initialize**: `joe config init` creates a default config file
+2. **Customize**: `joe config edit` opens the file in your default editor
+3. **CLI Override**: CLI arguments always override config file settings
+4. **Reset**: `joe config reset` restores defaults
+
+Example with config integration:
+```bash
+# Set defaults in config, then run with overrides
+joe config init
+joe run game.ch8                    # Uses config defaults
+joe run game.ch8 --verbose          # Overrides verbose setting
+joe run game.ch8 --cycle-delay-ms 8 # Overrides timing
 ```
 
 ## Development

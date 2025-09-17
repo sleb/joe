@@ -1,6 +1,6 @@
 use clap::Parser;
 use joe::{
-    AsciiRenderer, Emulator, EmulatorConfig, Renderer, RomSource, load_rom_data,
+    AsciiRenderer, Config, ConfigManager, Emulator, EmulatorConfig, Renderer, RomSource, load_rom_data,
 };
 
 #[derive(Parser)]
@@ -13,12 +13,14 @@ pub struct RunCommand {
     pub rom_source: String,
 
     /// Maximum number of CPU cycles to execute (0 = unlimited)
-    #[arg(short = 'c', long, default_value = "0")]
-    pub max_cycles: usize,
+    /// If not specified, uses value from config file
+    #[arg(short = 'c', long)]
+    pub max_cycles: Option<usize>,
 
     /// Delay between CPU cycles in milliseconds (16ms ≈ 60fps)
-    #[arg(short = 'd', long, default_value = "16")]
-    pub cycle_delay_ms: u64,
+    /// If not specified, uses value from config file
+    #[arg(short = 'd', long)]
+    pub cycle_delay_ms: Option<u64>,
 
     /// Show CPU state after each cycle
     #[arg(short = 'v', long)]
@@ -52,12 +54,24 @@ impl RunCommand {
             rom_data.len()
         );
 
-        // Configure the emulator
+        // Load user configuration
+        let user_config = ConfigManager::new()
+            .and_then(|manager| manager.load())
+            .unwrap_or_else(|e| {
+                eprintln!("Warning: Failed to load config: {}. Using defaults.", e);
+                Config::default()
+            });
+
+        // Configure the emulator (CLI args override config file)
         let config = EmulatorConfig {
-            max_cycles: self.max_cycles,
-            cycle_delay_ms: self.cycle_delay_ms,
-            verbose: self.verbose,
-            write_protection: !disable_write_protection,
+            max_cycles: self.max_cycles.unwrap_or(user_config.emulator.default_max_cycles),
+            cycle_delay_ms: self.cycle_delay_ms.unwrap_or(user_config.emulator.default_cycle_delay_ms),
+            verbose: self.verbose || user_config.emulator.default_verbose,
+            write_protection: if disable_write_protection {
+                false
+            } else {
+                user_config.emulator.default_write_protection
+            },
         };
 
         // Create and initialize emulator
@@ -84,16 +98,16 @@ mod tests {
 
     #[test]
     fn test_run_command_creation() {
-        // Test that RunCommand can be created with default values
+        // Test that RunCommand can be created with optional values
         let cmd = RunCommand {
             rom_source: "test.ch8".to_string(),
-            max_cycles: 100,
-            cycle_delay_ms: 16,
+            max_cycles: Some(100),
+            cycle_delay_ms: Some(16),
             verbose: false,
         };
 
-        assert_eq!(cmd.max_cycles, 100);
-        assert_eq!(cmd.cycle_delay_ms, 16);
+        assert_eq!(cmd.max_cycles, Some(100));
+        assert_eq!(cmd.cycle_delay_ms, Some(16));
         assert!(!cmd.verbose);
     }
 
@@ -102,14 +116,14 @@ mod tests {
         // Test that we can create EmulatorConfig from RunCommand parameters
         let cmd = RunCommand {
             rom_source: "test.ch8".to_string(),
-            max_cycles: 200,
-            cycle_delay_ms: 8,
+            max_cycles: Some(200),
+            cycle_delay_ms: Some(8),
             verbose: true,
         };
 
         let config = EmulatorConfig {
-            max_cycles: cmd.max_cycles,
-            cycle_delay_ms: cmd.cycle_delay_ms,
+            max_cycles: cmd.max_cycles.unwrap_or(0),
+            cycle_delay_ms: cmd.cycle_delay_ms.unwrap_or(16),
             verbose: cmd.verbose,
             write_protection: true,
         };

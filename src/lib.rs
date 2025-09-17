@@ -22,6 +22,7 @@
 //! - [`Renderer`] - ASCII rendering backend ✅
 //! - [`Input`] - 16-key keypad handling ✅
 //! - [`Emulator`] - Main coordination and timing ✅
+//! - [`Config`] - Configuration management and persistence ✅
 //! - [`Audio`] - Sound timer and beep generation (TODO)
 //!
 //! # Quick Start
@@ -84,6 +85,7 @@
 //! - 🚧 Sound timer with beep generation (TODO)
 //! - 🚧 Complete instruction set (remaining opcodes)
 
+pub mod config;
 pub mod cpu;
 pub mod disassembler;
 pub mod display;
@@ -95,6 +97,7 @@ pub mod rom_loader;
 // pub mod audio;
 
 // Re-export main types for convenience
+pub use config::{Config, ConfigError, ConfigManager, DisplaySettings, EmulatorSettings, InputSettings};
 pub use cpu::{Cpu, CpuError, CpuState};
 pub use disassembler::{
     InstructionAnalysis, analyze_instruction_usage, disassemble_rom, print_disassembly,

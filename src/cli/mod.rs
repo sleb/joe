@@ -1,4 +1,5 @@
 mod analyze;
+mod config;
 mod run;
 mod version;
 
@@ -6,6 +7,7 @@ use clap::{Parser, Subcommand};
 use joe::Result;
 
 pub use analyze::AnalyzeCommand;
+pub use config::ConfigCommand;
 pub use run::RunCommand;
 pub use version::VersionCommand;
 
@@ -31,6 +33,8 @@ pub enum Commands {
     Analyze(AnalyzeCommand),
     /// Run a CHIP-8 ROM file
     Run(RunCommand),
+    /// Manage configuration files
+    Config(ConfigCommand),
     // Future commands:
     // /// Run a ROM with debugging features
     // Debug(DebugCommand),
@@ -55,6 +59,7 @@ impl Cli {
             Commands::Version(cmd) => cmd.execute(),
             Commands::Analyze(cmd) => cmd.execute(self.disable_write_protection),
             Commands::Run(cmd) => cmd.execute(self.disable_write_protection),
+            Commands::Config(cmd) => cmd.execute(),
         }
     }
 }

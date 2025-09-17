@@ -1,0 +1,213 @@
+//! Configuration Management
+//!
+//! Handles loading, saving, and managing user configuration files
+//! stored in OS-appropriate directories.
+
+use directories::ProjectDirs;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
+use thiserror::Error;
+
+/// Configuration errors
+#[derive(Debug, Error)]
+pub enum ConfigError {
+    #[error("Could not determine user configuration directory")]
+    NoConfigDir,
+
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("TOML parsing error: {0}")]
+    Toml(#[from] toml::de::Error),
+
+    #[error("TOML serialization error: {0}")]
+    TomlSer(#[from] toml::ser::Error),
+}
+
+/// User configuration for the emulator
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+    /// Emulator settings
+    pub emulator: EmulatorSettings,
+
+    /// Display settings
+    pub display: DisplaySettings,
+
+    /// Input settings
+    pub input: InputSettings,
+}
+
+/// Emulator-specific settings
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmulatorSettings {
+    /// Default maximum number of CPU cycles to execute (0 = unlimited)
+    pub default_max_cycles: usize,
+
+    /// Default delay between CPU cycles in milliseconds
+    pub default_cycle_delay_ms: u64,
+
+    /// Enable verbose output by default
+    pub default_verbose: bool,
+
+    /// Enable memory write protection by default
+    pub default_write_protection: bool,
+}
+
+/// Display-specific settings
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DisplaySettings {
+    /// Character to use for "on" pixels in ASCII rendering
+    pub pixel_on_char: String,
+
+    /// Character to use for "off" pixels in ASCII rendering
+    pub pixel_off_char: String,
+}
+
+/// Input-specific settings
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InputSettings {
+    /// Custom key mappings (CHIP-8 key -> keyboard key)
+    pub key_mappings: std::collections::HashMap<String, String>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        let mut key_mappings = std::collections::HashMap::new();
+
+        // Default CHIP-8 to keyboard mappings
+        key_mappings.insert("0".to_string(), "X".to_string());
+        key_mappings.insert("1".to_string(), "1".to_string());
+        key_mappings.insert("2".to_string(), "2".to_string());
+        key_mappings.insert("3".to_string(), "3".to_string());
+        key_mappings.insert("4".to_string(), "Q".to_string());
+        key_mappings.insert("5".to_string(), "W".to_string());
+        key_mappings.insert("6".to_string(), "E".to_string());
+        key_mappings.insert("7".to_string(), "A".to_string());
+        key_mappings.insert("8".to_string(), "S".to_string());
+        key_mappings.insert("9".to_string(), "D".to_string());
+        key_mappings.insert("A".to_string(), "Z".to_string());
+        key_mappings.insert("B".to_string(), "C".to_string());
+        key_mappings.insert("C".to_string(), "4".to_string());
+        key_mappings.insert("D".to_string(), "R".to_string());
+        key_mappings.insert("E".to_string(), "F".to_string());
+        key_mappings.insert("F".to_string(), "V".to_string());
+
+        Self {
+            emulator: EmulatorSettings {
+                default_max_cycles: 0,
+                default_cycle_delay_ms: 16,
+                default_verbose: false,
+                default_write_protection: true,
+            },
+            display: DisplaySettings {
+                pixel_on_char: "██".to_string(),
+                pixel_off_char: "  ".to_string(),
+            },
+            input: InputSettings {
+                key_mappings,
+            },
+        }
+    }
+}
+
+/// Configuration manager for handling config files
+pub struct ConfigManager {
+    config_path: PathBuf,
+}
+
+impl ConfigManager {
+    /// Create a new configuration manager
+    pub fn new() -> Result<Self, ConfigError> {
+        let proj_dirs = ProjectDirs::from("com", "sleb", "joe")
+            .ok_or(ConfigError::NoConfigDir)?;
+
+        let config_dir = proj_dirs.config_dir();
+        let config_path = config_dir.join("config.toml");
+
+        // Ensure the config directory exists
+        if !config_dir.exists() {
+            fs::create_dir_all(config_dir)?;
+        }
+
+        Ok(Self { config_path })
+    }
+
+    /// Get the path to the configuration file
+    pub fn config_path(&self) -> &Path {
+        &self.config_path
+    }
+
+    /// Load configuration from file, creating default if it doesn't exist
+    pub fn load(&self) -> Result<Config, ConfigError> {
+        if !self.config_path.exists() {
+            let default_config = Config::default();
+            self.save(&default_config)?;
+            return Ok(default_config);
+        }
+
+        let content = fs::read_to_string(&self.config_path)?;
+        let config: Config = toml::from_str(&content)?;
+        Ok(config)
+    }
+
+    /// Save configuration to file
+    pub fn save(&self, config: &Config) -> Result<(), ConfigError> {
+        let content = toml::to_string_pretty(config)?;
+        fs::write(&self.config_path, content)?;
+        Ok(())
+    }
+
+    /// Reset configuration to defaults
+    pub fn reset(&self) -> Result<Config, ConfigError> {
+        let default_config = Config::default();
+        self.save(&default_config)?;
+        Ok(default_config)
+    }
+
+    /// Check if configuration file exists
+    pub fn exists(&self) -> bool {
+        self.config_path.exists()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+
+    #[test]
+    fn test_default_config() {
+        let config = Config::default();
+
+        assert_eq!(config.emulator.default_max_cycles, 0);
+        assert_eq!(config.emulator.default_cycle_delay_ms, 16);
+        assert!(!config.emulator.default_verbose);
+        assert!(config.emulator.default_write_protection);
+
+        assert_eq!(config.display.pixel_on_char, "██");
+        assert_eq!(config.display.pixel_off_char, "  ");
+
+        assert!(!config.input.key_mappings.is_empty());
+        assert_eq!(config.input.key_mappings.get("0"), Some(&"X".to_string()));
+    }
+
+    #[test]
+    fn test_config_serialization() {
+        let config = Config::default();
+        let toml_str = toml::to_string(&config).unwrap();
+        let deserialized: Config = toml::from_str(&toml_str).unwrap();
+
+        assert_eq!(config.emulator.default_max_cycles, deserialized.emulator.default_max_cycles);
+        assert_eq!(config.display.pixel_on_char, deserialized.display.pixel_on_char);
+    }
+
+    #[test]
+    fn test_config_manager_creation() {
+        // This test might fail in some CI environments without home directories
+        if env::var("HOME").is_ok() || env::var("USERPROFILE").is_ok() {
+            let manager = ConfigManager::new();
+            assert!(manager.is_ok());
+        }
+    }
+}
