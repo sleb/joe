@@ -50,7 +50,6 @@
 //!     max_cycles: 1000,
 //!     cycle_delay_ms: 10,
 //!     verbose: true,
-//!     final_only: true,
 //!     write_protection: true,
 //! };
 //!

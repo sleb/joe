@@ -39,10 +39,6 @@ pub struct EmulatorConfig {
     /// Show CPU state after each cycle
     pub verbose: bool,
 
-
-    /// Show only final display state instead of continuous updates
-    pub final_only: bool,
-
     /// Enable memory write protection
     pub write_protection: bool,
 }
@@ -53,7 +49,6 @@ impl Default for EmulatorConfig {
             max_cycles: 0,
             cycle_delay_ms: 16, // ~60fps
             verbose: false,
-            final_only: false,
             write_protection: true,
         }
     }
@@ -181,9 +176,7 @@ impl Emulator {
                     }
 
                     // Smart display rendering: only update if display changed or enough time passed
-                    if !self.config.final_only {
-                        self.render_display_if_needed(renderer)?;
-                    }
+                    self.render_display_if_needed(renderer)?;
                 }
                 Err(e) => {
                     println!("Execution error at cycle {}: {}", self.cycles_executed, e);
@@ -200,7 +193,7 @@ impl Emulator {
         self.is_running.store(false, Ordering::SeqCst);
 
         // Show final results and statistics
-        self.show_final_statistics(renderer);
+        self.show_final_statistics();
         Ok(())
     }
 
@@ -284,17 +277,10 @@ impl Emulator {
     }
 
     /// Show final statistics and display state
-    fn show_final_statistics(&self, renderer: &dyn Renderer) {
+    fn show_final_statistics(&self) {
         println!("\nEmulation completed after {} cycles", self.cycles_executed);
 
-        // Only show final display if we're in final-only mode (user hasn't seen it yet)
-        // In continuous mode, the final display is already visible above
-    if self.config.final_only {
-            println!("\nFinal Display Output:");
-            println!("{}", "=".repeat(70));
-            renderer.render(&self.display);
-            println!("{}", "=".repeat(70));
-        }
+        // Final display is already visible above from continuous updates
 
         // Show statistics
         let stats = self.display.get_stats();
@@ -356,7 +342,6 @@ mod tests {
             max_cycles: 100,
             cycle_delay_ms: 10,
             verbose: true,
-            final_only: true,
             write_protection: false,
         };
 
@@ -364,7 +349,6 @@ mod tests {
         assert_eq!(emulator.config.max_cycles, 100);
         assert_eq!(emulator.config.cycle_delay_ms, 10);
         assert!(emulator.config.verbose);
-        assert!(emulator.config.final_only);
         assert!(!emulator.config.write_protection);
     }
 

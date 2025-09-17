@@ -108,7 +108,7 @@ cargo install --git https://github.com/sleb/joe --tag v0.2.0
 
 - Real-time continuous display updates during ROM execution
 - Smart display rendering that only updates when display changes or at reasonable intervals
-- `--final-only` flag to show only the final display state instead of continuous updates
+
 - Improved cycle delay defaults (16ms ≈ 60fps) for smooth real-time display
 - Support for unlimited execution (removed artificial infinite loop detection)
 - Graceful Ctrl+C handling that shows statistics and final display state before exiting

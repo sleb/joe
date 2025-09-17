@@ -203,15 +203,8 @@ joe run <ROM> --cycle-delay-ms 500
 # Run with verbose output showing CPU state each cycle
 joe run <ROM> --verbose
 
-# Show only the final display state (no continuous updates)
-joe run <ROM> --final-only
-
-
 # Set maximum cycles (0 = unlimited, programs can run indefinitely)
 joe run <ROM> --max-cycles 100
-
-# Fast execution with final display only
-joe run <ROM> --cycle-delay-ms 0 --final-only
 ```
 
 ### Analyzing ROMs
@@ -262,7 +255,6 @@ let config = EmulatorConfig {
     max_cycles: 1000,
     cycle_delay_ms: 10,
     verbose: false,
-    final_only: true,
     write_protection: true,
 };
 let mut emulator = Emulator::new(config);
@@ -349,7 +341,7 @@ joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-lo
 - High-level `Emulator` struct that coordinates all components
 - Complete emulation loop with cycle execution and timing control
 - Real-time display updates with smart rendering optimization
-- Configurable execution modes (continuous, final-only, verbose)
+- Configurable execution modes (continuous, verbose)
 - Statistics tracking and comprehensive reporting
 - Signal handling (Ctrl+C) with graceful shutdown
 - Clean API for both library use and CLI integration

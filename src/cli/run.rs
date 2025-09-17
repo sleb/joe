@@ -23,11 +23,6 @@ pub struct RunCommand {
     /// Show CPU state after each cycle
     #[arg(short = 'v', long)]
     pub verbose: bool,
-
-
-    /// Show only final display state instead of continuous updates
-    #[arg(long)]
-    pub final_only: bool,
 }
 
 impl RunCommand {
@@ -62,7 +57,6 @@ impl RunCommand {
             max_cycles: self.max_cycles,
             cycle_delay_ms: self.cycle_delay_ms,
             verbose: self.verbose,
-            final_only: self.final_only,
             write_protection: !disable_write_protection,
         };
 
@@ -96,13 +90,11 @@ mod tests {
             max_cycles: 100,
             cycle_delay_ms: 16,
             verbose: false,
-            final_only: false,
         };
 
         assert_eq!(cmd.max_cycles, 100);
         assert_eq!(cmd.cycle_delay_ms, 16);
         assert!(!cmd.verbose);
-        assert!(!cmd.final_only);
     }
 
     #[test]
@@ -113,21 +105,18 @@ mod tests {
             max_cycles: 200,
             cycle_delay_ms: 8,
             verbose: true,
-            final_only: true,
         };
 
         let config = EmulatorConfig {
             max_cycles: cmd.max_cycles,
             cycle_delay_ms: cmd.cycle_delay_ms,
             verbose: cmd.verbose,
-            final_only: cmd.final_only,
             write_protection: true,
         };
 
         assert_eq!(config.max_cycles, 200);
         assert_eq!(config.cycle_delay_ms, 8);
         assert!(config.verbose);
-        assert!(config.final_only);
         assert!(config.write_protection);
     }
 }
