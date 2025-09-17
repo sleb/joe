@@ -24,9 +24,6 @@ pub struct RunCommand {
     #[arg(short = 'v', long)]
     pub verbose: bool,
 
-    /// Use headless mode (no display output)
-    #[arg(long)]
-    pub headless: bool,
 
     /// Show only final display state instead of continuous updates
     #[arg(long)]
@@ -65,7 +62,6 @@ impl RunCommand {
             max_cycles: self.max_cycles,
             cycle_delay_ms: self.cycle_delay_ms,
             verbose: self.verbose,
-            headless: self.headless,
             final_only: self.final_only,
             write_protection: !disable_write_protection,
         };
@@ -77,13 +73,8 @@ impl RunCommand {
         emulator.load_rom(&rom_data)?;
         println!("ROM loaded at address 0x{:04X}", 0x200);
 
-        // Choose renderer based on headless flag
-        let renderer: Box<dyn Renderer> = if self.headless {
-            println!("Running in headless mode (no display output)");
-            Box::new(joe::HeadlessRenderer)
-        } else {
-            Box::new(AsciiRenderer)
-        };
+        // Use ASCII renderer only
+        let renderer: Box<dyn Renderer> = Box::new(AsciiRenderer);
 
         // Run the emulator
         emulator.run(renderer.as_ref())?;
@@ -105,14 +96,12 @@ mod tests {
             max_cycles: 100,
             cycle_delay_ms: 16,
             verbose: false,
-            headless: true,
             final_only: false,
         };
 
         assert_eq!(cmd.max_cycles, 100);
         assert_eq!(cmd.cycle_delay_ms, 16);
         assert!(!cmd.verbose);
-        assert!(cmd.headless);
         assert!(!cmd.final_only);
     }
 
@@ -124,7 +113,6 @@ mod tests {
             max_cycles: 200,
             cycle_delay_ms: 8,
             verbose: true,
-            headless: false,
             final_only: true,
         };
 
@@ -132,7 +120,6 @@ mod tests {
             max_cycles: cmd.max_cycles,
             cycle_delay_ms: cmd.cycle_delay_ms,
             verbose: cmd.verbose,
-            headless: cmd.headless,
             final_only: cmd.final_only,
             write_protection: true,
         };
@@ -140,7 +127,6 @@ mod tests {
         assert_eq!(config.max_cycles, 200);
         assert_eq!(config.cycle_delay_ms, 8);
         assert!(config.verbose);
-        assert!(!config.headless);
         assert!(config.final_only);
         assert!(config.write_protection);
     }

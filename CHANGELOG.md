@@ -153,7 +153,7 @@ cargo install --git https://github.com/sleb/joe --tag v0.2.0
 - Collision detection for sprite operations with proper CHIP-8 behavior
 - Coordinate wrapping at screen edges following CHIP-8 specification
 - ASCII terminal renderer for development and testing
-- Headless renderer for testing without output
+
 - Working CLS (clear screen) and DRW (draw sprite) instruction implementation
 - Successfully runs IBM Logo ROM demonstrating complete core functionality
 
@@ -167,7 +167,7 @@ cargo install --git https://github.com/sleb/joe --tag v0.2.0
 ### Technical
 
 - Added DisplayBus trait for logical display operations (clear, draw_sprite, get/set pixel)
-- Added Renderer trait for presentation layer (ASCII, headless, future GUI)
+- Added Renderer trait for presentation layer (ASCII, future GUI)
 - Updated CPU execute_cycle to accept both memory and display parameters
 - Added comprehensive display tests covering XOR logic, collision detection, and coordinate wrapping
 - Created working example program that runs IBM Logo ROM with ASCII output

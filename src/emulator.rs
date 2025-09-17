@@ -39,8 +39,6 @@ pub struct EmulatorConfig {
     /// Show CPU state after each cycle
     pub verbose: bool,
 
-    /// Use headless mode (no display output)
-    pub headless: bool,
 
     /// Show only final display state instead of continuous updates
     pub final_only: bool,
@@ -55,7 +53,6 @@ impl Default for EmulatorConfig {
             max_cycles: 0,
             cycle_delay_ms: 16, // ~60fps
             verbose: false,
-            headless: false,
             final_only: false,
             write_protection: true,
         }
@@ -184,7 +181,7 @@ impl Emulator {
                     }
 
                     // Smart display rendering: only update if display changed or enough time passed
-                    if !self.config.headless && !self.config.final_only {
+                    if !self.config.final_only {
                         self.render_display_if_needed(renderer)?;
                     }
                 }
@@ -292,7 +289,7 @@ impl Emulator {
 
         // Only show final display if we're in final-only mode (user hasn't seen it yet)
         // In continuous mode, the final display is already visible above
-        if !self.config.headless && self.config.final_only {
+    if self.config.final_only {
             println!("\nFinal Display Output:");
             println!("{}", "=".repeat(70));
             renderer.render(&self.display);
@@ -359,7 +356,6 @@ mod tests {
             max_cycles: 100,
             cycle_delay_ms: 10,
             verbose: true,
-            headless: true,
             final_only: true,
             write_protection: false,
         };
@@ -368,7 +364,6 @@ mod tests {
         assert_eq!(emulator.config.max_cycles, 100);
         assert_eq!(emulator.config.cycle_delay_ms, 10);
         assert!(emulator.config.verbose);
-        assert!(emulator.config.headless);
         assert!(emulator.config.final_only);
         assert!(!emulator.config.write_protection);
     }

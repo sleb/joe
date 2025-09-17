@@ -19,7 +19,7 @@
 //! - [`Memory`] - 4KB RAM with font data and ROM loading ✅
 //! - [`Cpu`] - Instruction execution and register management ✅
 //! - [`Display`] - 64x32 framebuffer with sprite operations ✅
-//! - [`Renderer`] - ASCII and headless rendering backends ✅
+//! - [`Renderer`] - ASCII rendering backend ✅
 //! - [`Input`] - 16-key keypad handling ✅
 //! - [`Emulator`] - Main coordination and timing ✅
 //! - [`Audio`] - Sound timer and beep generation (TODO)
@@ -44,19 +44,18 @@
 //! For more control, you can configure the emulator:
 //!
 //! ```rust,no_run
-//! use joe::{Emulator, EmulatorConfig, HeadlessRenderer};
+//! use joe::{Emulator, EmulatorConfig, AsciiRenderer};
 //!
 //! let config = EmulatorConfig {
 //!     max_cycles: 1000,
 //!     cycle_delay_ms: 10,
 //!     verbose: true,
-//!     headless: true,
 //!     final_only: true,
 //!     write_protection: true,
 //! };
 //!
 //! let mut emulator = Emulator::new(config);
-//! let renderer = HeadlessRenderer;
+//! let renderer = AsciiRenderer;
 //!
 //! // Load and run ROM
 //! let rom_data = std::fs::read("game.ch8").unwrap();
@@ -102,7 +101,7 @@ pub use disassembler::{
     InstructionAnalysis, analyze_instruction_usage, disassemble_rom, print_disassembly,
 };
 pub use display::{
-    AsciiRenderer, Display, DisplayBus, DisplayError, DisplayStats, HeadlessRenderer, Renderer,
+    AsciiRenderer, Display, DisplayBus, DisplayError, DisplayStats, Renderer,
 };
 pub use emulator::{Emulator, EmulatorConfig, EmulatorError, EmulatorStats};
 pub use input::{ChipKey, Input, InputBus, InputError, InputStats, MockInput};

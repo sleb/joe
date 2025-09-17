@@ -27,7 +27,7 @@ Try it yourself: `joe run <ROM>`
 - **Modular Design**: Separate components for CPU, Memory, Display, Input, and coordination
 - **Clean Abstraction**: The `Emulator` struct provides a simple interface that manages all complexity internally
 - **Library-First**: Can be used as both a CLI tool and embedded in other Rust projects
-- **Extensible Rendering**: Trait-based system supports ASCII terminal, headless, and future GUI renderers
+**Extensible Rendering**: Trait-based system supports ASCII terminal and future GUI renderers
 
 ## Installation
 
@@ -206,8 +206,6 @@ joe run <ROM> --verbose
 # Show only the final display state (no continuous updates)
 joe run <ROM> --final-only
 
-# Run in headless mode (no display output, useful for testing)
-joe run <ROM> --headless
 
 # Set maximum cycles (0 = unlimited, programs can run indefinitely)
 joe run <ROM> --max-cycles 100
@@ -264,7 +262,6 @@ let config = EmulatorConfig {
     max_cycles: 1000,
     cycle_delay_ms: 10,
     verbose: false,
-    headless: false,
     final_only: true,
     write_protection: true,
 };
@@ -292,7 +289,7 @@ loop {
 
 - **Clean API**: Simple `Emulator` struct that manages all components
 - **Flexible Configuration**: Customize timing, rendering, and execution behavior
-- **Multiple Renderers**: ASCII terminal, headless, or implement your own
+**Multiple Renderers**: ASCII terminal or implement your own
 - **Statistics**: Get real-time execution and display statistics
 - **Error Handling**: Comprehensive error types with context
 - **Step-by-Step Execution**: Run individual cycles for debugging or integration
@@ -352,7 +349,7 @@ joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-lo
 - High-level `Emulator` struct that coordinates all components
 - Complete emulation loop with cycle execution and timing control
 - Real-time display updates with smart rendering optimization
-- Configurable execution modes (continuous, final-only, headless, verbose)
+- Configurable execution modes (continuous, final-only, verbose)
 - Statistics tracking and comprehensive reporting
 - Signal handling (Ctrl+C) with graceful shutdown
 - Clean API for both library use and CLI integration
@@ -384,7 +381,6 @@ joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-lo
 #### 8. Rendering (`src/display.rs`) ✅
 
 - ASCII terminal renderer for development
-- Headless renderer for testing
 - Extensible renderer trait for future GUI implementations
 - Clean separation between display logic and presentation
 
@@ -405,7 +401,7 @@ joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-lo
 - **Display system**: 64x32 framebuffer with XOR sprite drawing and collision detection
 - **CPU architecture**: Complete register management, stack, timers, state machine
 - **Signal handling**: Graceful Ctrl+C with statistics display
-- **Multiple renderers**: ASCII terminal and headless modes with extensible trait system
+**Multiple renderers**: ASCII terminal mode with extensible trait system
 - **Testing**: Comprehensive unit and integration test coverage (74 tests)
 
 **Runs Real ROMs:**
@@ -543,7 +539,7 @@ pub trait Renderer {
 // ✅ Usage: Display logic + chosen renderer
 let mut display = Display::new();
 display.draw_sprite(10, 5, &sprite_data)?;
-AsciiRenderer.render(&display);  // or GuiRenderer, HeadlessRenderer, etc.
+AsciiRenderer.render(&display);  // or GuiRenderer, etc.
 
 // ❌ Incorrect: Mixed responsibilities
 impl Display {
@@ -551,7 +547,7 @@ impl Display {
 }
 ```
 
-**Rationale**: Display logic (XOR, collision detection, coordinate wrapping) is the same regardless of output method. Separating rendering allows multiple presentation methods (ASCII, GUI, headless testing) without duplicating display logic.
+**Rationale**: Display logic (XOR, collision detection, coordinate wrapping) is the same regardless of output method. Separating rendering allows multiple presentation methods (ASCII, GUI) without duplicating display logic.
 
 #### Error Handling Contract
 
@@ -647,7 +643,6 @@ Once installed, use these commands:
 # Run CHIP-8 ROMs
 joe run <ROM>
 joe run <ROM> --verbose
-joe run <ROM> --headless --cycle-delay-ms 0
 
 # Analyze ROMs
 joe analyze <ROM>

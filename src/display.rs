@@ -27,7 +27,7 @@ pub enum DisplayError {
 /// Display bus trait for CPU to interact with display system
 ///
 /// This trait defines the logical display operations independent of how
-/// the display is physically rendered (ASCII, GUI, headless, etc.).
+/// the display is physically rendered (ASCII, GUI, etc.).
 pub trait DisplayBus {
     /// Clear the entire display (set all pixels to off)
     fn clear(&mut self);
@@ -56,7 +56,7 @@ pub trait DisplayBus {
 ///
 /// This trait separates the concern of how to render the logical display
 /// from the display logic itself. Different renderers can be implemented
-/// for different output methods (ASCII terminal, GUI, headless testing, etc.).
+/// for different output methods (ASCII terminal, GUI, etc.).
 pub trait Renderer {
     /// Render the current state of a display
     fn render(&self, display: &dyn DisplayBus);
@@ -223,26 +223,7 @@ impl Renderer for AsciiRenderer {
     }
 }
 
-/// Headless renderer for testing (no output)
-pub struct HeadlessRenderer;
 
-impl Renderer for HeadlessRenderer {
-    fn render(&self, _display: &dyn DisplayBus) {
-        // No output - used for testing
-    }
-
-    fn pixel_width(&self) -> usize {
-        0 // No visual output
-    }
-
-    fn pixel_on_char(&self) -> &str {
-        ""
-    }
-
-    fn pixel_off_char(&self) -> &str {
-        ""
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -436,49 +417,24 @@ mod tests {
         renderer.render(&display);
     }
 
-    #[test]
-    fn test_headless_renderer() {
-        let mut display = Display::new();
-        let renderer = HeadlessRenderer;
 
-        // Set some pixels
-        display.set_pixel(10, 5, true);
-        display.set_pixel(20, 15, true);
-
-        // Headless renderer should do nothing (no output, no panic)
-        renderer.render(&display);
-
-        // Pixels should still be set (renderer doesn't modify display)
-        assert!(display.get_pixel(10, 5));
-        assert!(display.get_pixel(20, 15));
-    }
 
     #[test]
     fn test_renderer_trait_object() {
         let display = Display::new();
 
         // Test that we can use renderers as trait objects
-        let renderers: Vec<Box<dyn Renderer>> =
-            vec![Box::new(AsciiRenderer), Box::new(HeadlessRenderer)];
-
-        for renderer in renderers {
-            renderer.render(&display); // Should not panic
-        }
+        let renderer: Box<dyn Renderer> = Box::new(AsciiRenderer);
+        renderer.render(&display); // Should not panic
     }
 
     #[test]
     fn test_pixel_width() {
         let ascii_renderer = AsciiRenderer;
-        let headless_renderer = HeadlessRenderer;
 
         // ASCII renderer uses double-wide characters
         assert_eq!(ascii_renderer.pixel_width(), 2);
         assert_eq!(ascii_renderer.pixel_on_char(), "██");
         assert_eq!(ascii_renderer.pixel_off_char(), "  ");
-
-        // Headless renderer has no visual output
-        assert_eq!(headless_renderer.pixel_width(), 0);
-        assert_eq!(headless_renderer.pixel_on_char(), "");
-        assert_eq!(headless_renderer.pixel_off_char(), "");
     }
 }
