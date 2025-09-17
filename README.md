@@ -18,8 +18,16 @@ We can now execute the IBM Logo ROM, demonstrating:
 - ✅ Sprite drawing with XOR logic and collision detection
 - ✅ Memory management with ROM loading
 - ✅ ASCII terminal rendering for development
+- ✅ High-level `Emulator` API for easy integration
 
 Try it yourself: `joe run <ROM>`
+
+### Architecture Highlights
+
+- **Modular Design**: Separate components for CPU, Memory, Display, Input, and coordination
+- **Clean Abstraction**: The `Emulator` struct provides a simple interface that manages all complexity internally
+- **Library-First**: Can be used as both a CLI tool and embedded in other Rust projects
+- **Extensible Rendering**: Trait-based system supports ASCII terminal, headless, and future GUI renderers
 
 ## Installation
 
@@ -241,6 +249,54 @@ joe analyze https://retro-games.org/roms/pong.ch8
 - Clear error messages for network failures
 - Same ROM size limits apply (max 3584 bytes)
 
+## Using as a Library
+
+The JOE emulator can be easily embedded in other Rust projects thanks to the clean `Emulator` API:
+
+```rust
+use joe::{Emulator, EmulatorConfig, AsciiRenderer};
+
+// Create an emulator with default configuration
+let mut emulator = Emulator::with_defaults();
+
+// Or customize the configuration
+let config = EmulatorConfig {
+    max_cycles: 1000,
+    cycle_delay_ms: 10,
+    verbose: false,
+    headless: false,
+    final_only: true,
+    write_protection: true,
+};
+let mut emulator = Emulator::new(config);
+
+// Load a ROM
+let rom_data = std::fs::read("game.ch8")?;
+emulator.load_rom(&rom_data)?;
+
+// Run with a renderer
+let renderer = AsciiRenderer;
+emulator.run(&renderer)?;
+
+// Or step through execution manually
+loop {
+    emulator.step()?;
+    let stats = emulator.get_stats();
+    if stats.cycles_executed >= 100 {
+        break;
+    }
+}
+```
+
+### Library Features
+
+- **Clean API**: Simple `Emulator` struct that manages all components
+- **Flexible Configuration**: Customize timing, rendering, and execution behavior
+- **Multiple Renderers**: ASCII terminal, headless, or implement your own
+- **Statistics**: Get real-time execution and display statistics
+- **Error Handling**: Comprehensive error types with context
+- **Step-by-Step Execution**: Run individual cycles for debugging or integration
+
 ## Looking for ROMs
 
 ### Test ROMs
@@ -291,16 +347,24 @@ joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-lo
 - Coordinate wrapping at screen edges
 - Separation of logical display from rendering concerns
 
-#### 4. CLI and Emulation (`src/cli/run.rs`) ✅
+#### 4. Emulator Core (`src/emulator.rs`) ✅
 
-- Complete emulation loop with cycle execution
-- Real-time display updates and smart rendering
-- Comprehensive ROM execution with statistics
+- High-level `Emulator` struct that coordinates all components
+- Complete emulation loop with cycle execution and timing control
+- Real-time display updates with smart rendering optimization
+- Configurable execution modes (continuous, final-only, headless, verbose)
+- Statistics tracking and comprehensive reporting
 - Signal handling (Ctrl+C) with graceful shutdown
-- Multiple execution modes (continuous, final-only, headless)
-- Cycle timing and delay management
+- Clean API for both library use and CLI integration
 
-#### 5. Instruction Set (`src/instruction.rs`) ✅
+#### 5. CLI Interface (`src/cli/run.rs`) ✅
+
+- Streamlined command-line interface focused on user experience
+- ROM loading from files and URLs with validation
+- Configuration management and renderer selection
+- Clean separation between CLI logic and emulation logic
+
+#### 6. Instruction Set (`src/instruction.rs`) ✅
 
 - Complete CHIP-8 instruction set (all 35 opcodes)
 - Centralized instruction decoding with single source of truth
@@ -308,7 +372,7 @@ joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-lo
 - Comprehensive instruction analysis and disassembly
 - Mnemonic generation for debugging
 
-#### 6. Input System (`src/input.rs`) ✅
+#### 7. Input System (`src/input.rs`) ✅
 
 - 16-key hexadecimal keypad support with QWERTY keyboard mapping
 - Type-safe ChipKey enum eliminating boundary checking errors
@@ -317,7 +381,7 @@ joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-lo
 - CPU state machine with authentic blocking behavior for key waits
 - MockInput for deterministic testing and comprehensive test coverage
 
-#### 7. Rendering (`src/display.rs`) ✅
+#### 8. Rendering (`src/display.rs`) ✅
 
 - ASCII terminal renderer for development
 - Headless renderer for testing
@@ -333,14 +397,16 @@ joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-lo
 - **Complete instruction set**: All 35 CHIP-8 opcodes implemented and tested
 - **Interactive input system**: 16-key keypad with QWERTY mapping for games
 - **Full emulation**: ROM loading, execution, display, input, and statistics
+- **Clean Architecture**: High-level `Emulator` struct managing all component coordination
+- **Library API**: Easy integration into other Rust projects with comprehensive configuration
 - **Professional CLI**: `joe run` and `joe analyze` commands with comprehensive options
 - **Real-time display**: Continuous ASCII rendering with smart update logic
 - **Memory system**: 4KB RAM, font data, ROM loading with validation
 - **Display system**: 64x32 framebuffer with XOR sprite drawing and collision detection
 - **CPU architecture**: Complete register management, stack, timers, state machine
 - **Signal handling**: Graceful Ctrl+C with statistics display
-- **Multiple renderers**: ASCII terminal and headless modes
-- **Testing**: Comprehensive unit and integration test coverage (68 tests)
+- **Multiple renderers**: ASCII terminal and headless modes with extensible trait system
+- **Testing**: Comprehensive unit and integration test coverage (74 tests)
 
 **Runs Real ROMs:**
 
@@ -390,9 +456,12 @@ joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-lo
 
 ### Architecture Choices
 
-- **Modular design**: Separate modules for each major component
-- **Trait-based interfaces**: Allow for different frontend implementations
-- **Error handling**: Use `Result` types and proper error propagation
+- **Modular design**: Separate modules for each major component with clear responsibilities
+- **Coordination pattern**: High-level `Emulator` struct manages component interactions and state
+- **Trait-based interfaces**: Allow for different renderer and input implementations
+- **Separation of concerns**: CLI logic separated from emulation logic for better maintainability
+- **Library-first design**: Core emulation can be embedded in other projects
+- **Error handling**: Use `Result` types and proper error propagation with rich context
 - **Lean testing**: Focused unit tests, minimal integration tests for real workflows
 
 ### Architectural Contracts

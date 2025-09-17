@@ -21,30 +21,47 @@
 //! - [`Display`] - 64x32 framebuffer with sprite operations ✅
 //! - [`Renderer`] - ASCII and headless rendering backends ✅
 //! - [`Input`] - 16-key keypad handling ✅
+//! - [`Emulator`] - Main coordination and timing ✅
 //! - [`Audio`] - Sound timer and beep generation (TODO)
-//! - [`Emulator`] - Main coordination and timing (TODO)
 //!
 //! # Quick Start
 //!
 //! ```rust,no_run
-//! use joe::{Memory, Cpu, Display, Input, AsciiRenderer, Renderer};
+//! use joe::{Emulator, EmulatorConfig, AsciiRenderer};
 //!
-//! // Create emulator components
-//! let mut memory = Memory::new(true);
-//! let mut cpu = Cpu::new();
-//! let mut display = Display::new();
-//! let mut input = Input::new();
+//! // Create an emulator with default configuration
+//! let mut emulator = Emulator::with_defaults();
 //! let renderer = AsciiRenderer;
 //!
 //! // Load a ROM file
 //! let rom_data = std::fs::read("game.ch8").unwrap();
-//! memory.load_rom(&rom_data).unwrap();
+//! emulator.load_rom(&rom_data).unwrap();
 //!
-//! // Execute instructions
-//! cpu.execute_cycle(&mut memory, &mut display, &mut input).unwrap();
+//! // Run the emulator
+//! emulator.run(&renderer).unwrap();
+//! ```
 //!
-//! // Render the display
-//! renderer.render(&display);
+//! For more control, you can configure the emulator:
+//!
+//! ```rust,no_run
+//! use joe::{Emulator, EmulatorConfig, HeadlessRenderer};
+//!
+//! let config = EmulatorConfig {
+//!     max_cycles: 1000,
+//!     cycle_delay_ms: 10,
+//!     verbose: true,
+//!     headless: true,
+//!     final_only: true,
+//!     write_protection: true,
+//! };
+//!
+//! let mut emulator = Emulator::new(config);
+//! let renderer = HeadlessRenderer;
+//!
+//! // Load and run ROM
+//! let rom_data = std::fs::read("game.ch8").unwrap();
+//! emulator.load_rom(&rom_data).unwrap();
+//! emulator.run(&renderer).unwrap();
 //! ```
 //!
 //! # Memory Layout
@@ -72,12 +89,12 @@
 pub mod cpu;
 pub mod disassembler;
 pub mod display;
+pub mod emulator;
 pub mod input;
 pub mod instruction;
 pub mod memory;
 pub mod rom_loader;
 // pub mod audio;
-// pub mod emulator;
 
 // Re-export main types for convenience
 pub use cpu::{Cpu, CpuError, CpuState};
@@ -87,11 +104,11 @@ pub use disassembler::{
 pub use display::{
     AsciiRenderer, Display, DisplayBus, DisplayError, DisplayStats, HeadlessRenderer, Renderer,
 };
+pub use emulator::{Emulator, EmulatorConfig, EmulatorError, EmulatorStats};
 pub use input::{ChipKey, Input, InputBus, InputError, InputStats, MockInput};
 pub use instruction::{DecodeError, Instruction, decode_opcode};
 pub use memory::{Memory, MemoryBus, MemoryError, MemoryStats};
 pub use rom_loader::{RomLoaderConfig, RomSource, load_rom_data, load_rom_data_with_config};
-// pub use emulator::{Emulator, EmulatorError};
 
 /// Result type alias using anyhow for convenience
 pub type Result<T> = anyhow::Result<T>;

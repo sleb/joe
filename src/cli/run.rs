@@ -1,10 +1,7 @@
 use clap::Parser;
 use joe::{
-    AsciiRenderer, Cpu, Display, Input, InputBus, Memory, Renderer, RomSource, load_rom_data,
+    AsciiRenderer, Emulator, EmulatorConfig, Renderer, RomSource, load_rom_data,
 };
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration, Instant};
 
 #[derive(Parser)]
 pub struct RunCommand {
@@ -63,15 +60,21 @@ impl RunCommand {
             rom_data.len()
         );
 
-        // Initialize emulator components
-        let write_protection = !disable_write_protection;
-        let mut memory = Memory::new(write_protection);
-        let mut cpu = Cpu::new();
-        let mut display = Display::new();
-        let mut input = Input::new();
+        // Configure the emulator
+        let config = EmulatorConfig {
+            max_cycles: self.max_cycles,
+            cycle_delay_ms: self.cycle_delay_ms,
+            verbose: self.verbose,
+            headless: self.headless,
+            final_only: self.final_only,
+            write_protection: !disable_write_protection,
+        };
 
-        // Load ROM into memory
-        memory.load_rom(&rom_data)?;
+        // Create and initialize emulator
+        let mut emulator = Emulator::new(config);
+
+        // Load ROM into emulator
+        emulator.load_rom(&rom_data)?;
         println!("ROM loaded at address 0x{:04X}", 0x200);
 
         // Choose renderer based on headless flag
@@ -83,179 +86,16 @@ impl RunCommand {
         };
 
         // Run the emulator
-        println!("\nStarting emulation...");
-        if self.verbose {
-            println!("Verbose mode enabled - showing CPU state each cycle");
-        }
-        if self.max_cycles > 0 {
-            println!(
-                "Max cycles: {}, Cycle delay: {}ms",
-                self.max_cycles, self.cycle_delay_ms
-            );
-        } else {
-            println!(
-                "Running indefinitely, Cycle delay: {}ms",
-                self.cycle_delay_ms
-            );
-        }
-        println!("Press Ctrl+C to stop\n");
-
-        // Set up Ctrl+C handler
-        let running = Arc::new(AtomicBool::new(true));
-        let r = running.clone();
-        ctrlc::set_handler(move || {
-            r.store(false, Ordering::SeqCst);
-        })
-        .expect("Error setting Ctrl+C handler");
-
-        let mut cycles = 0;
-        let cycle_delay = Duration::from_millis(self.cycle_delay_ms);
-        let mut last_display_hash = 0u64;
-        let mut last_render_time = Instant::now();
-        let min_render_interval = Duration::from_millis(100); // Max 10 FPS for display updates
-
-        loop {
-            // Check if user pressed Ctrl+C
-            if !running.load(Ordering::SeqCst) {
-                println!("\nReceived Ctrl+C, stopping...");
-                break;
-            }
-            cycles += 1;
-
-            if self.verbose {
-                println!(
-                    "Cycle {}: PC=0x{:04X}, I=0x{:04X}",
-                    cycles,
-                    cpu.get_pc(),
-                    cpu.get_index()
-                );
-            }
-
-            // Poll input backend (allow non-blocking input backends to update state)
-            input.update();
-
-            // Execute one CPU cycle
-            match cpu.execute_cycle(&mut memory, &mut display, &mut input) {
-                Ok(()) => {
-                    // Check for max cycles limit (if set)
-                    if self.max_cycles > 0 && cycles >= self.max_cycles {
-                        println!("Reached maximum cycles ({}), stopping", self.max_cycles);
-                        break;
-                    }
-
-                    // Smart display rendering: only update if display changed or enough time passed
-                    if !self.headless && !self.final_only {
-                        let stats = display.get_stats();
-                        let current_hash = stats.pixels_on as u64; // Simple hash based on pixel count
-                        let now = Instant::now();
-
-                        let display_changed = current_hash != last_display_hash;
-                        let enough_time_passed =
-                            now.duration_since(last_render_time) >= min_render_interval;
-
-                        if display_changed || enough_time_passed {
-                            // Clear screen and move cursor to top
-                            print!("\x1B[2J\x1B[H");
-                            println!("CHIP-8 Display (Cycle: {}):", cycles);
-                            renderer.render(&display);
-
-                            last_display_hash = current_hash;
-                            last_render_time = now;
-                        }
-                    }
-                }
-                Err(e) => {
-                    println!("Execution error at cycle {}: {}", cycles, e);
-                    break;
-                }
-            }
-
-            // Add delay between cycles
-            if self.cycle_delay_ms > 0 {
-                std::thread::sleep(cycle_delay);
-            }
-        }
-
-        // Show final results and statistics
-        self.show_final_statistics(cycles, &cpu, &display, renderer.as_ref());
+        emulator.run(renderer.as_ref())?;
         Ok(())
     }
 
-    /// Show final statistics and display state
-    fn show_final_statistics(
-        &self,
-        cycles: usize,
-        cpu: &Cpu,
-        display: &Display,
-        renderer: &dyn Renderer,
-    ) {
-        println!("\nEmulation completed after {} cycles", cycles);
 
-        // Only show final display if we're in final-only mode (user hasn't seen it yet)
-        // In continuous mode, the final display is already visible above
-        if !self.headless && self.final_only {
-            println!("\nFinal Display Output:");
-            println!("{}", "=".repeat(70));
-            renderer.render(display);
-            println!("{}", "=".repeat(70));
-        }
-
-        // Show statistics
-        let stats = display.get_stats();
-        println!("\nStatistics:");
-        println!("  Cycles executed: {}", cycles);
-        println!(
-            "  Display pixels on: {}/{} ({}%)",
-            stats.pixels_on,
-            stats.pixels_total,
-            if stats.pixels_total > 0 {
-                (stats.pixels_on * 100) / stats.pixels_total
-            } else {
-                0
-            }
-        );
-
-        println!("  Final CPU state:");
-        println!("    PC: 0x{:04X}", cpu.get_pc());
-        println!("    I:  0x{:04X}", cpu.get_index());
-
-        // Show a few registers
-        for i in 0..4 {
-            if let Ok(value) = cpu.get_register(i)
-                && value != 0
-            {
-                println!("    V{}: 0x{:02X}", i, value);
-            }
-        }
-
-        if cpu.get_delay_timer() > 0 {
-            println!("    Delay Timer: {}", cpu.get_delay_timer());
-        }
-        if cpu.get_sound_timer() > 0 {
-            println!("    Sound Timer: {}", cpu.get_sound_timer());
-        }
-
-        println!("\nROM execution complete!");
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicBool, Ordering};
-
-    #[test]
-    fn test_signal_handler_setup() {
-        // Test that we can create and use AtomicBool for signal handling
-        let running = Arc::new(AtomicBool::new(true));
-        let r = running.clone();
-
-        // Simulate signal handler behavior
-        assert!(running.load(Ordering::SeqCst));
-        r.store(false, Ordering::SeqCst);
-        assert!(!running.load(Ordering::SeqCst));
-    }
 
     #[test]
     fn test_run_command_creation() {
@@ -274,5 +114,34 @@ mod tests {
         assert!(!cmd.verbose);
         assert!(cmd.headless);
         assert!(!cmd.final_only);
+    }
+
+    #[test]
+    fn test_emulator_config_creation() {
+        // Test that we can create EmulatorConfig from RunCommand parameters
+        let cmd = RunCommand {
+            rom_source: "test.ch8".to_string(),
+            max_cycles: 200,
+            cycle_delay_ms: 8,
+            verbose: true,
+            headless: false,
+            final_only: true,
+        };
+
+        let config = EmulatorConfig {
+            max_cycles: cmd.max_cycles,
+            cycle_delay_ms: cmd.cycle_delay_ms,
+            verbose: cmd.verbose,
+            headless: cmd.headless,
+            final_only: cmd.final_only,
+            write_protection: true,
+        };
+
+        assert_eq!(config.max_cycles, 200);
+        assert_eq!(config.cycle_delay_ms, 8);
+        assert!(config.verbose);
+        assert!(!config.headless);
+        assert!(config.final_only);
+        assert!(config.write_protection);
     }
 }
