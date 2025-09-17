@@ -663,10 +663,10 @@ The emulator supports persistent configuration files stored in OS-standard locat
 
 ```toml
 [emulator]
-default_max_cycles = 0              # 0 = unlimited
-default_cycle_delay_ms = 16         # ~60fps timing
-default_verbose = false             # Enable debug output
-default_write_protection = true     # Protect interpreter area
+max_cycles = 0                      # 0 = unlimited
+cycle_delay_ms = 16                 # ~60fps timing
+verbose = false                     # Enable debug output
+write_protection = true             # Protect interpreter area
 
 [display]
 pixel_on_char = "██"               # Character for lit pixels

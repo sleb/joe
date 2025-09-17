@@ -41,20 +41,18 @@ pub struct Config {
 /// Emulator-specific settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmulatorSettings {
-    /// Default maximum number of CPU cycles to execute (0 = unlimited)
-    pub default_max_cycles: usize,
+    /// Maximum number of CPU cycles to execute (0 = unlimited)
+    pub max_cycles: usize,
 
-    /// Default delay between CPU cycles in milliseconds
-    pub default_cycle_delay_ms: u64,
+    /// Delay between CPU cycles in milliseconds
+    pub cycle_delay_ms: u64,
 
-    /// Enable verbose output by default
-    pub default_verbose: bool,
+    /// Enable verbose output
+    pub verbose: bool,
 
-    /// Enable memory write protection by default
-    pub default_write_protection: bool,
-}
-
-/// Display-specific settings
+    /// Enable memory write protection
+    pub write_protection: bool,
+}/// Display-specific settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DisplaySettings {
     /// Character to use for "on" pixels in ASCII rendering
@@ -95,10 +93,10 @@ impl Default for Config {
 
         Self {
             emulator: EmulatorSettings {
-                default_max_cycles: 0,
-                default_cycle_delay_ms: 16,
-                default_verbose: false,
-                default_write_protection: true,
+                max_cycles: 0,
+                cycle_delay_ms: 16,
+                verbose: false,
+                write_protection: true,
             },
             display: DisplaySettings {
                 pixel_on_char: "██".to_string(),
@@ -180,10 +178,10 @@ mod tests {
     fn test_default_config() {
         let config = Config::default();
 
-        assert_eq!(config.emulator.default_max_cycles, 0);
-        assert_eq!(config.emulator.default_cycle_delay_ms, 16);
-        assert!(!config.emulator.default_verbose);
-        assert!(config.emulator.default_write_protection);
+        assert_eq!(config.emulator.max_cycles, 0);
+        assert_eq!(config.emulator.cycle_delay_ms, 16);
+        assert!(!config.emulator.verbose);
+        assert!(config.emulator.write_protection);
 
         assert_eq!(config.display.pixel_on_char, "██");
         assert_eq!(config.display.pixel_off_char, "  ");
@@ -198,7 +196,7 @@ mod tests {
         let toml_str = toml::to_string(&config).unwrap();
         let deserialized: Config = toml::from_str(&toml_str).unwrap();
 
-        assert_eq!(config.emulator.default_max_cycles, deserialized.emulator.default_max_cycles);
+        assert_eq!(config.emulator.max_cycles, deserialized.emulator.max_cycles);
         assert_eq!(config.display.pixel_on_char, deserialized.display.pixel_on_char);
     }
 

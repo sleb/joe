@@ -64,13 +64,13 @@ impl RunCommand {
 
         // Configure the emulator (CLI args override config file)
         let config = EmulatorConfig {
-            max_cycles: self.max_cycles.unwrap_or(user_config.emulator.default_max_cycles),
-            cycle_delay_ms: self.cycle_delay_ms.unwrap_or(user_config.emulator.default_cycle_delay_ms),
-            verbose: self.verbose || user_config.emulator.default_verbose,
+            max_cycles: self.max_cycles.unwrap_or(user_config.emulator.max_cycles),
+            cycle_delay_ms: self.cycle_delay_ms.unwrap_or(user_config.emulator.cycle_delay_ms),
+            verbose: self.verbose || user_config.emulator.verbose,
             write_protection: if disable_write_protection {
                 false
             } else {
-                user_config.emulator.default_write_protection
+                user_config.emulator.write_protection
             },
         };
 
