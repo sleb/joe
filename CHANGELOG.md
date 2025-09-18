@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-09-18
+
+### Added
+
+- **Complete Configuration System** - Persistent configuration management with TOML files
+- **Cross-Platform Config Storage** - OS-standard configuration directories:
+  - Linux/Unix: `~/.config/joe/config.toml`
+  - macOS: `~/Library/Application Support/joe/config.toml`  
+  - Windows: `%APPDATA%\joe\config.toml`
+- **New CLI Configuration Commands**:
+  - `joe config init` - Initialize configuration file with defaults
+  - `joe config show` - Display current configuration
+  - `joe config path` - Show configuration file path
+  - `joe config edit` - Open configuration in default editor
+  - `joe config reset` - Reset configuration to defaults
+- **Configuration Sections** - Structured TOML with emulator, display, and input settings
+- **CLI Integration** - Configuration file provides defaults, CLI arguments override settings
+- **Enhanced Emulator API** - Better encapsulation with accessor methods and state management
+
+### Changed
+
+- **Emulator Architecture** - Improved coordination pattern with component encapsulation
+- **Configuration Priority** - CLI arguments now override config file settings
+- **Error Handling** - Enhanced configuration-specific error types and messages
+- **Development Workflow** - Configuration-aware CLI for better developer experience
+
+### Technical
+
+- Added `Config`, `ConfigManager`, `EmulatorSettings`, `DisplaySettings`, `InputSettings` structs
+- Added `directories` and `toml` dependencies for configuration management
+- Enhanced `Emulator` struct with `reset()`, accessor methods, and better state tracking
+- Added comprehensive configuration tests and validation
+- Improved library API exports for configuration types
+
+### API Additions
+
+- `Config` - Main configuration structure with TOML serialization
+- `ConfigManager` - Configuration file management with load/save operations
+- `ConfigError` - Configuration-specific error handling
+- Enhanced `Emulator` with `reset()`, `cpu()`, `memory()`, `display()`, `input()` accessors
+- Configuration CLI command group with subcommands
+
+**Breaking**: None - all changes are backward compatible additions
+
+**Milestone**: This release establishes persistent configuration management, enabling users to customize emulator behavior and persist settings between sessions. The enhanced emulator API provides better control and introspection capabilities.
+
 ## [0.3.0] - 2025-09-15
 
 ### Added
@@ -258,7 +304,8 @@ cargo install --git https://github.com/sleb/joe --tag v0.2.0
 - Created chrono-based build timestamp generation
 - Set up automatic git hash, branch, and dirty status detection
 
-[Unreleased]: https://github.com/sleb/joe/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/sleb/joe/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/sleb/joe/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/sleb/joe/compare/v0.2.0...v0.3.0
 [0.1.5]: https://github.com/sleb/octo/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/sleb/octo/compare/v0.1.3...v0.1.4

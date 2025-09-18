@@ -35,7 +35,7 @@ Try it yourself: `joe run <ROM>`
 
 ```bash
 # Install the latest release from GitHub
-cargo install --git https://github.com/sleb/joe --tag v0.3.0 --force
+cargo install --git https://github.com/sleb/joe --tag v0.4.0 --force
 
 # Verify installation
 joe version
@@ -45,11 +45,11 @@ joe version
 
 ```bash
 # Update to the latest release
-cargo install --git https://github.com/sleb/joe --tag v0.3.0
+cargo install --git https://github.com/sleb/joe --tag v0.4.0
 
 # Or uninstall and reinstall
 cargo uninstall joe
-cargo install --git https://github.com/sleb/joe --tag v0.3.0
+cargo install --git https://github.com/sleb/joe --tag v0.4.0
 ```
 
 ### From Specific Version
@@ -91,7 +91,7 @@ If you previously installed this emulator as `octo`, you'll need to migrate to t
 cargo uninstall octo
 
 # 2. Install the new version
-cargo install --git https://github.com/sleb/joe --tag v0.3.0
+cargo install --git https://github.com/sleb/joe --tag v0.4.0
 
 # 3. Update any scripts or aliases
 # Old: octo run rom.ch8
@@ -378,7 +378,7 @@ joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-lo
 
 ## Current Status & Next Steps
 
-### ✅ **Completed: Interactive CHIP-8 Emulator (v0.3.0+)**
+### ✅ **Completed: Interactive CHIP-8 Emulator (v0.4.0+)**
 
 **What Works Now:**
 
