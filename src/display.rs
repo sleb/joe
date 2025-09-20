@@ -431,7 +431,7 @@ impl RatatuiRenderer {
         ]);
 
         let header = Paragraph::new(title)
-            .block(Block::default().borders(Borders::ALL).title("Header"))
+            .block(Block::default().borders(Borders::ALL))
             .wrap(Wrap { trim: true });
 
         f.render_widget(header, area);
