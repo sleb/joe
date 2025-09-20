@@ -11,7 +11,7 @@
 //! - Complete CPU with instruction decoding and execution
 //! - Memory system with ROM loading and font data
 //! - Display system with XOR sprite drawing and collision detection
-//! - ASCII terminal rendering for development
+//! - Rich terminal UI with ratatui for interactive emulation
 //!
 //! # Architecture
 //!
@@ -19,7 +19,7 @@
 //! - [`Memory`] - 4KB RAM with font data and ROM loading ✅
 //! - [`Cpu`] - Instruction execution and register management ✅
 //! - [`Display`] - 64x32 framebuffer with sprite operations ✅
-//! - [`Renderer`] - ASCII rendering backend ✅
+//! - [`RatatuiRenderer`] - Rich terminal UI with interactive display ✅
 //! - [`Input`] - 16-key keypad handling ✅
 //! - [`Emulator`] - Main coordination and timing ✅
 //! - [`Config`] - Configuration management and persistence ✅
@@ -28,24 +28,24 @@
 //! # Quick Start
 //!
 //! ```rust,no_run
-//! use joe::{Emulator, EmulatorConfig, AsciiRenderer};
+//! use joe::{Emulator, EmulatorConfig, RatatuiRenderer, RatatuiConfig};
 //!
 //! // Create an emulator with default configuration
 //! let mut emulator = Emulator::with_defaults();
-//! let renderer = AsciiRenderer;
+//! let mut renderer = RatatuiRenderer::new(RatatuiConfig::default()).unwrap();
 //!
 //! // Load a ROM file
 //! let rom_data = std::fs::read("game.ch8").unwrap();
 //! emulator.load_rom(&rom_data).unwrap();
 //!
-//! // Run the emulator
-//! emulator.run(&renderer).unwrap();
+//! // Run the emulator with interactive terminal UI
+//! emulator.run(&mut renderer).unwrap();
 //! ```
 //!
 //! For more control, you can configure the emulator:
 //!
 //! ```rust,no_run
-//! use joe::{Emulator, EmulatorConfig, AsciiRenderer};
+//! use joe::{Emulator, EmulatorConfig, RatatuiRenderer, RatatuiConfig};
 //!
 //! let config = EmulatorConfig {
 //!     max_cycles: 1000,
@@ -55,12 +55,12 @@
 //! };
 //!
 //! let mut emulator = Emulator::new(config);
-//! let renderer = AsciiRenderer;
+//! let mut renderer = RatatuiRenderer::new(RatatuiConfig::default()).unwrap();
 //!
 //! // Load and run ROM
 //! let rom_data = std::fs::read("game.ch8").unwrap();
 //! emulator.load_rom(&rom_data).unwrap();
-//! emulator.run(&renderer).unwrap();
+//! emulator.run(&mut renderer).unwrap();
 //! ```
 //!
 //! # Memory Layout
@@ -97,13 +97,16 @@ pub mod rom_loader;
 // pub mod audio;
 
 // Re-export main types for convenience
-pub use config::{Config, ConfigError, ConfigManager, DisplaySettings, EmulatorSettings, InputSettings};
+pub use config::{
+    Config, ConfigError, ConfigManager, DisplaySettings, EmulatorSettings, InputSettings,
+};
 pub use cpu::{Cpu, CpuError, CpuState};
 pub use disassembler::{
     InstructionAnalysis, analyze_instruction_usage, disassemble_rom, print_disassembly,
 };
 pub use display::{
-    AsciiRenderer, Display, DisplayBus, DisplayError, DisplayStats, Renderer,
+    ControlAction, Display, DisplayBus, DisplayError, DisplayStats, RatatuiConfig, RatatuiRenderer,
+    RendererError,
 };
 pub use emulator::{Emulator, EmulatorConfig, EmulatorError, EmulatorStats};
 pub use input::{ChipKey, Input, InputBus, InputError, InputStats, MockInput};

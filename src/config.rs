@@ -52,14 +52,21 @@ pub struct EmulatorSettings {
 
     /// Enable memory write protection
     pub write_protection: bool,
-}/// Display-specific settings
+}
+/// Display-specific settings for ratatui renderer
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DisplaySettings {
-    /// Character to use for "on" pixels in ASCII rendering
-    pub pixel_on_char: String,
+    /// Character to use for pixels in ratatui rendering
+    pub pixel_char: String,
 
-    /// Character to use for "off" pixels in ASCII rendering
-    pub pixel_off_char: String,
+    /// Pixel color theme (Green, White, Blue, etc.)
+    pub pixel_color: String,
+
+    /// Refresh rate in milliseconds for the display
+    pub refresh_rate_ms: u64,
+
+    /// Theme name for the overall UI
+    pub theme: String,
 }
 
 /// Input-specific settings
@@ -99,12 +106,12 @@ impl Default for Config {
                 write_protection: true,
             },
             display: DisplaySettings {
-                pixel_on_char: "██".to_string(),
-                pixel_off_char: "  ".to_string(),
+                pixel_char: "█".to_string(),
+                pixel_color: "Green".to_string(),
+                refresh_rate_ms: 16,
+                theme: "Default".to_string(),
             },
-            input: InputSettings {
-                key_mappings,
-            },
+            input: InputSettings { key_mappings },
         }
     }
 }
@@ -117,8 +124,7 @@ pub struct ConfigManager {
 impl ConfigManager {
     /// Create a new configuration manager
     pub fn new() -> Result<Self, ConfigError> {
-        let proj_dirs = ProjectDirs::from("com", "sleb", "joe")
-            .ok_or(ConfigError::NoConfigDir)?;
+        let proj_dirs = ProjectDirs::from("com", "sleb", "joe").ok_or(ConfigError::NoConfigDir)?;
 
         let config_dir = proj_dirs.config_dir();
         let config_path = config_dir.join("config.toml");
@@ -183,8 +189,10 @@ mod tests {
         assert!(!config.emulator.verbose);
         assert!(config.emulator.write_protection);
 
-        assert_eq!(config.display.pixel_on_char, "██");
-        assert_eq!(config.display.pixel_off_char, "  ");
+        assert_eq!(config.display.pixel_char, "█");
+        assert_eq!(config.display.pixel_color, "Green");
+        assert_eq!(config.display.refresh_rate_ms, 16);
+        assert_eq!(config.display.theme, "Default");
 
         assert!(!config.input.key_mappings.is_empty());
         assert_eq!(config.input.key_mappings.get("0"), Some(&"X".to_string()));
@@ -197,7 +205,8 @@ mod tests {
         let deserialized: Config = toml::from_str(&toml_str).unwrap();
 
         assert_eq!(config.emulator.max_cycles, deserialized.emulator.max_cycles);
-        assert_eq!(config.display.pixel_on_char, deserialized.display.pixel_on_char);
+        assert_eq!(config.display.pixel_char, deserialized.display.pixel_char);
+        assert_eq!(config.display.theme, deserialized.display.theme);
     }
 
     #[test]

@@ -5,7 +5,8 @@
 //! their interactions. This simplifies usage and provides a clean API for
 //! running CHIP-8 programs.
 
-use crate::{Cpu, Display, Input, InputBus, Memory, Renderer};
+use crate::display::{ControlAction, RatatuiRenderer};
+use crate::{Cpu, Display, Input, InputBus, Memory};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -22,6 +23,9 @@ pub enum EmulatorError {
 
     #[error("Display error: {0}")]
     Display(#[from] crate::display::DisplayError),
+
+    #[error("Renderer error: {0}")]
+    Renderer(#[from] crate::display::RendererError),
 
     #[error("Input error: {0}")]
     Input(#[from] crate::input::InputError),
@@ -114,7 +118,7 @@ impl Emulator {
     }
 
     /// Start the emulation loop
-    pub fn run(&mut self, renderer: &dyn Renderer) -> Result<(), EmulatorError> {
+    pub fn run(&mut self, renderer: &mut RatatuiRenderer) -> Result<(), EmulatorError> {
         self.is_running.store(true, Ordering::SeqCst);
         self.cycles_executed = 0;
 
@@ -167,11 +171,18 @@ impl Emulator {
             self.input.update();
 
             // Execute one CPU cycle
-            match self.cpu.execute_cycle(&mut self.memory, &mut self.display, &mut self.input) {
+            match self
+                .cpu
+                .execute_cycle(&mut self.memory, &mut self.display, &mut self.input)
+            {
                 Ok(()) => {
                     // Check for max cycles limit (if set)
-                    if self.config.max_cycles > 0 && self.cycles_executed >= self.config.max_cycles {
-                        println!("Reached maximum cycles ({}), stopping", self.config.max_cycles);
+                    if self.config.max_cycles > 0 && self.cycles_executed >= self.config.max_cycles
+                    {
+                        println!(
+                            "Reached maximum cycles ({}), stopping",
+                            self.config.max_cycles
+                        );
                         break;
                     }
 
@@ -200,7 +211,8 @@ impl Emulator {
     /// Execute a single cycle without the full emulation loop
     pub fn step(&mut self) -> Result<(), EmulatorError> {
         self.input.update();
-        self.cpu.execute_cycle(&mut self.memory, &mut self.display, &mut self.input)?;
+        self.cpu
+            .execute_cycle(&mut self.memory, &mut self.display, &mut self.input)?;
         self.cycles_executed += 1;
         Ok(())
     }
@@ -253,24 +265,29 @@ impl Emulator {
         self.last_render_time = Instant::now();
     }
 
-    /// Smart display rendering: only update if display changed or enough time passed
-    fn render_display_if_needed(&mut self, renderer: &dyn Renderer) -> Result<(), EmulatorError> {
-        let stats = self.display.get_stats();
-        let current_hash = stats.pixels_on as u64; // Simple hash based on pixel count
-        let now = Instant::now();
-        let min_render_interval = Duration::from_millis(100);
+    /// Render display using ratatui renderer
+    fn render_display_if_needed(
+        &mut self,
+        renderer: &mut RatatuiRenderer,
+    ) -> Result<(), EmulatorError> {
+        // The RatatuiRenderer handles its own timing and event processing
+        let control_action = renderer.render(&self.display, self.cycles_executed)?;
 
-        let display_changed = current_hash != self.last_display_hash;
-        let enough_time_passed = now.duration_since(self.last_render_time) >= min_render_interval;
-
-        if display_changed || enough_time_passed {
-            // Clear screen and move cursor to top
-            print!("\x1B[2J\x1B[H");
-            println!("CHIP-8 Display (Cycle: {}):", self.cycles_executed);
-            renderer.render(&self.display);
-
-            self.last_display_hash = current_hash;
-            self.last_render_time = now;
+        // Handle any control actions from the renderer
+        match control_action {
+            ControlAction::None => {}
+            ControlAction::Reset => {
+                println!("\nReset requested, restarting emulator state...");
+                self.reset();
+            }
+            ControlAction::TogglePause => {
+                println!("\nPause/Resume requested (not yet implemented)");
+                // TODO: Implement pause/resume functionality
+            }
+            ControlAction::Quit => {
+                println!("\nQuit requested via renderer");
+                self.is_running.store(false, Ordering::SeqCst);
+            }
         }
 
         Ok(())
@@ -278,7 +295,10 @@ impl Emulator {
 
     /// Show final statistics and display state
     fn show_final_statistics(&self) {
-        println!("\nEmulation completed after {} cycles", self.cycles_executed);
+        println!(
+            "\nEmulation completed after {} cycles",
+            self.cycles_executed
+        );
 
         // Final display is already visible above from continuous updates
 
@@ -324,7 +344,6 @@ impl Emulator {
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn test_emulator_creation() {

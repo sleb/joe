@@ -849,6 +849,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
+ "crossterm",
  "ctrlc",
  "directories",
  "ratatui",

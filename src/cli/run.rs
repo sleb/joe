@@ -1,6 +1,7 @@
 use clap::Parser;
 use joe::{
-    AsciiRenderer, Config, ConfigManager, Emulator, EmulatorConfig, Renderer, RomSource, load_rom_data,
+    Config, ConfigManager, Emulator, EmulatorConfig, RatatuiConfig, RatatuiRenderer, RomSource,
+    load_rom_data,
 };
 
 #[derive(Parser)]
@@ -65,7 +66,9 @@ impl RunCommand {
         // Configure the emulator (CLI args override config file)
         let config = EmulatorConfig {
             max_cycles: self.max_cycles.unwrap_or(user_config.emulator.max_cycles),
-            cycle_delay_ms: self.cycle_delay_ms.unwrap_or(user_config.emulator.cycle_delay_ms),
+            cycle_delay_ms: self
+                .cycle_delay_ms
+                .unwrap_or(user_config.emulator.cycle_delay_ms),
             verbose: self.verbose || user_config.emulator.verbose,
             write_protection: if disable_write_protection {
                 false
@@ -81,15 +84,14 @@ impl RunCommand {
         emulator.load_rom(&rom_data)?;
         println!("ROM loaded at address 0x{:04X}", 0x200);
 
-        // Use ASCII renderer only
-        let renderer: Box<dyn Renderer> = Box::new(AsciiRenderer);
+        // Create ratatui renderer using user configuration
+        let ratatui_config = RatatuiConfig::from_display_settings(&user_config.display);
+        let mut renderer = RatatuiRenderer::new(ratatui_config)?;
 
         // Run the emulator
-        emulator.run(renderer.as_ref())?;
+        emulator.run(&mut renderer)?;
         Ok(())
     }
-
-
 }
 
 #[cfg(test)]

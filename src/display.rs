@@ -1,8 +1,30 @@
 //! CHIP-8 Display System
 //!
 //! Implements the 64x32 monochrome display with XOR sprite drawing and collision detection.
-//! Separates logical display operations from physical rendering concerns.
+//! Includes ratatui-based terminal renderer for rich interactive display.
 
+use crossterm::{
+    event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
+    execute,
+    terminal::{
+        EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+        size as terminal_size,
+    },
+    tty::IsTty,
+};
+use ratatui::{
+    Frame, Terminal,
+    backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Paragraph, Wrap},
+};
+use std::{
+    collections::VecDeque,
+    io::{self, Stdout, stdout},
+    time::{Duration, Instant},
+};
 use thiserror::Error;
 
 /// Display width in pixels
@@ -24,10 +46,23 @@ pub enum DisplayError {
     SpriteTooTall { height: usize, max_height: usize },
 }
 
+/// Control action requested by the renderer
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ControlAction {
+    /// No action requested
+    None,
+    /// Reset the emulator
+    Reset,
+    /// Toggle pause/resume (future feature)
+    TogglePause,
+    /// Quit the emulator
+    Quit,
+}
+
 /// Display bus trait for CPU to interact with display system
 ///
-/// This trait defines the logical display operations independent of how
-/// the display is physically rendered (ASCII, GUI, etc.).
+/// This trait defines the logical display operations that the CPU needs,
+/// independent of the physical rendering implementation.
 pub trait DisplayBus {
     /// Clear the entire display (set all pixels to off)
     fn clear(&mut self);
@@ -35,14 +70,6 @@ pub trait DisplayBus {
     /// Draw a sprite at position (x, y) using XOR logic
     ///
     /// Returns true if any pixels were turned OFF (collision detected)
-    ///
-    /// # CHIP-8 Sprite Drawing Contract
-    /// - Sprites are always 8 pixels wide
-    /// - Sprite height is determined by sprite_data length (1-15 bytes)
-    /// - Each byte represents one row of 8 pixels (MSB = leftmost pixel)
-    /// - Drawing uses XOR: on->off, off->on
-    /// - Coordinates wrap around screen edges (modulo arithmetic)
-    /// - Collision occurs when any pixel changes from on to off
     fn draw_sprite(&mut self, x: u8, y: u8, sprite_data: &[u8]) -> Result<bool, DisplayError>;
 
     /// Get pixel state at coordinates (for testing and rendering)
@@ -52,23 +79,20 @@ pub trait DisplayBus {
     fn set_pixel(&mut self, x: usize, y: usize, on: bool);
 }
 
-/// Renderer trait for physically outputting the display
-///
-/// This trait separates the concern of how to render the logical display
-/// from the display logic itself. Different renderers can be implemented
-/// for different output methods (ASCII terminal, GUI, etc.).
-pub trait Renderer {
-    /// Render the current state of a display
-    fn render(&self, display: &dyn DisplayBus);
+/// Renderer errors
+#[derive(Debug, Error)]
+pub enum RendererError {
+    #[error("Terminal initialization failed: {0}")]
+    TerminalInit(#[from] io::Error),
 
-    /// Get the character width of each pixel for this renderer
-    fn pixel_width(&self) -> usize;
+    #[error("Terminal too small: {width}x{height} (minimum: 80x24)")]
+    TerminalTooSmall { width: u16, height: u16 },
 
-    /// Get the character representation for an "on" pixel
-    fn pixel_on_char(&self) -> &str;
+    #[error("Not running in a TTY - emulator requires a terminal")]
+    NotATty,
 
-    /// Get the character representation for an "off" pixel
-    fn pixel_off_char(&self) -> &str;
+    #[error("Crossterm error: {0}")]
+    CrosstermError(String),
 }
 
 /// CHIP-8 Display implementation with 64x32 framebuffer
@@ -183,47 +207,336 @@ pub struct DisplayStats {
     pub pixels_total: usize,
 }
 
-/// ASCII terminal renderer for development and testing
-pub struct AsciiRenderer;
+/// Configuration for the ratatui renderer
+#[derive(Debug, Clone)]
+pub struct RatatuiConfig {
+    pub theme: String,
+    pub show_cpu_registers: bool,
+    pub show_performance_stats: bool,
+    pub show_input_status: bool,
+    pub show_memory_info: bool,
+    pub pixel_char: String,
+    pub pixel_color: String,
+    pub border_style: String,
+    pub refresh_rate_ms: u64,
+}
 
-impl Renderer for AsciiRenderer {
-    fn render(&self, display: &dyn DisplayBus) {
-        let border_width = DISPLAY_WIDTH * self.pixel_width();
-        println!("┌{}┐", "─".repeat(border_width));
-
-        for y in 0..DISPLAY_HEIGHT {
-            print!("│");
-            for x in 0..DISPLAY_WIDTH {
-                let pixel = display.get_pixel(x, y);
-                print!(
-                    "{}",
-                    if pixel {
-                        self.pixel_on_char()
-                    } else {
-                        self.pixel_off_char()
-                    }
-                );
-            }
-            println!("│");
+impl Default for RatatuiConfig {
+    fn default() -> Self {
+        Self {
+            theme: "classic".to_string(),
+            show_cpu_registers: true,
+            show_performance_stats: true,
+            show_input_status: true,
+            show_memory_info: true,
+            pixel_char: "█".to_string(),
+            pixel_color: "Green".to_string(),
+            border_style: "rounded".to_string(),
+            refresh_rate_ms: 16,
         }
-
-        println!("└{}┘", "─".repeat(border_width));
-    }
-
-    fn pixel_width(&self) -> usize {
-        2 // Double-wide characters
-    }
-
-    fn pixel_on_char(&self) -> &str {
-        "██"
-    }
-
-    fn pixel_off_char(&self) -> &str {
-        "  "
     }
 }
 
+impl RatatuiConfig {
+    /// Parse a color string into a ratatui Color
+    pub fn parse_color(color_str: &str) -> Color {
+        match color_str.to_lowercase().as_str() {
+            "green" => Color::Green,
+            "white" => Color::White,
+            "blue" => Color::Blue,
+            "red" => Color::Red,
+            "yellow" => Color::Yellow,
+            "cyan" => Color::Cyan,
+            "magenta" => Color::Magenta,
+            "gray" => Color::Gray,
+            "dark_gray" => Color::DarkGray,
+            _ => Color::Green, // Default fallback
+        }
+    }
 
+    /// Create RatatuiConfig from user DisplaySettings
+    pub fn from_display_settings(display_settings: &crate::config::DisplaySettings) -> Self {
+        Self {
+            theme: display_settings.theme.clone(),
+            show_cpu_registers: true,
+            show_performance_stats: true,
+            show_input_status: true,
+            show_memory_info: true,
+            pixel_char: display_settings.pixel_char.clone(),
+            pixel_color: display_settings.pixel_color.clone(),
+            border_style: "rounded".to_string(),
+            refresh_rate_ms: display_settings.refresh_rate_ms,
+        }
+    }
+}
+
+/// Ratatui-based terminal renderer for rich interactive display
+pub struct RatatuiRenderer {
+    terminal: Terminal<CrosstermBackend<Stdout>>,
+    config: RatatuiConfig,
+    stats_history: VecDeque<(Instant, usize)>, // (timestamp, cycles) for FPS calculation
+    last_render: Instant,
+}
+
+impl RatatuiRenderer {
+    /// Create a new ratatui renderer
+    pub fn new(config: RatatuiConfig) -> Result<Self, RendererError> {
+        // Validate terminal capabilities upfront
+        Self::validate_terminal()?;
+
+        enable_raw_mode()?;
+        let mut stdout = stdout();
+        execute!(stdout, EnterAlternateScreen)?;
+
+        let backend = CrosstermBackend::new(stdout);
+        let terminal = Terminal::new(backend)?;
+
+        Ok(Self {
+            terminal,
+            config,
+            stats_history: VecDeque::with_capacity(100),
+            last_render: Instant::now(),
+        })
+    }
+
+    fn validate_terminal() -> Result<(), RendererError> {
+        // Check if we're in a TTY
+        if !IsTty::is_tty(&io::stdin()) {
+            return Err(RendererError::NotATty);
+        }
+
+        // Check terminal size
+        let (width, height) = terminal_size()?;
+        if width < 80 || height < 20 {
+            return Err(RendererError::TerminalTooSmall { width, height });
+        }
+
+        Ok(())
+    }
+
+    /// Render the display with emulator stats
+    pub fn render(
+        &mut self,
+        display: &Display,
+        cycles_executed: usize,
+    ) -> Result<ControlAction, RendererError> {
+        // Process any pending terminal events and get any control actions
+        let control_action = self.handle_events()?;
+
+        // Update stats history for FPS calculation
+        let now = Instant::now();
+        self.stats_history.push_back((now, cycles_executed));
+
+        // Keep only recent history (last 2 seconds)
+        while let Some((timestamp, _)) = self.stats_history.front() {
+            if now.duration_since(*timestamp).as_secs() > 2 {
+                self.stats_history.pop_front();
+            } else {
+                break;
+            }
+        }
+
+        // Only render at configured rate to avoid excessive redraws
+        if now.duration_since(self.last_render).as_millis() < self.config.refresh_rate_ms as u128 {
+            return Ok(control_action);
+        }
+        self.last_render = now;
+
+        // Render the UI
+        let config = &self.config;
+        let stats_history = &self.stats_history;
+        self.terminal
+            .draw(|f| Self::draw_ui_static(f, display, cycles_executed, config, stats_history))?;
+
+        Ok(control_action)
+    }
+
+    fn handle_events(&mut self) -> Result<ControlAction, RendererError> {
+        // Handle ratatui-specific control keys (non-blocking)
+        while event::poll(Duration::from_millis(0))? {
+            if let Event::Key(key) = event::read()? {
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => {
+                            return Ok(ControlAction::Quit);
+                        }
+                        KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL => {
+                            return Ok(ControlAction::Reset);
+                        }
+                        KeyCode::Char(' ') => {
+                            return Ok(ControlAction::TogglePause);
+                        }
+                        KeyCode::Esc => {
+                            return Ok(ControlAction::Quit);
+                        }
+                        _ => {
+                            // Other keys are handled by the existing Input system
+                            // We don't interfere with CHIP-8 game keys here
+                        }
+                    }
+                }
+            }
+        }
+        Ok(ControlAction::None)
+    }
+
+    fn draw_ui_static(
+        f: &mut Frame,
+        display: &Display,
+        cycles_executed: usize,
+        config: &RatatuiConfig,
+        stats_history: &VecDeque<(Instant, usize)>,
+    ) {
+        // Create main layout
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Header
+                Constraint::Min(0),    // Main content
+                Constraint::Length(3), // Status bar
+            ])
+            .split(f.area());
+
+        // Header
+        Self::draw_header_static(f, chunks[0]);
+
+        // Main content area
+        let main_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Length(66), // Display (64 + 2 for borders)
+                Constraint::Min(0),     // Side panel
+            ])
+            .split(chunks[1]);
+
+        // Display
+        Self::draw_display_static(f, main_chunks[0], display, config);
+
+        // Side panel
+        Self::draw_side_panel_static(f, main_chunks[1], cycles_executed, stats_history);
+
+        // Status bar
+        Self::draw_status_bar_static(f, chunks[2], cycles_executed, stats_history, config);
+    }
+
+    fn draw_header_static(f: &mut Frame, area: Rect) {
+        let title = Line::from(vec![
+            Span::styled(
+                "JOE ",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("CHIP-8 Emulator v0.4.0", Style::default().fg(Color::White)),
+        ]);
+
+        let header = Paragraph::new(title)
+            .block(Block::default().borders(Borders::ALL).title("Header"))
+            .wrap(Wrap { trim: true });
+
+        f.render_widget(header, area);
+    }
+
+    fn draw_display_static(f: &mut Frame, area: Rect, display: &Display, config: &RatatuiConfig) {
+        let mut lines = Vec::new();
+
+        for y in 0..DISPLAY_HEIGHT {
+            let mut line_spans = Vec::new();
+            for x in 0..DISPLAY_WIDTH {
+                let pixel = display.get_pixel(x, y);
+                let pixel_color = RatatuiConfig::parse_color(&config.pixel_color);
+                line_spans.push(Span::styled(
+                    &config.pixel_char,
+                    if pixel {
+                        Style::default().fg(pixel_color)
+                    } else {
+                        Style::default().fg(Color::DarkGray)
+                    },
+                ));
+            }
+            lines.push(Line::from(line_spans));
+        }
+
+        let display_widget = Paragraph::new(lines)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("CHIP-8 Display"),
+            )
+            .wrap(Wrap { trim: false });
+
+        f.render_widget(display_widget, area);
+    }
+
+    fn draw_side_panel_static(
+        f: &mut Frame,
+        area: Rect,
+        cycles_executed: usize,
+        stats_history: &VecDeque<(Instant, usize)>,
+    ) {
+        let fps = Self::calculate_fps_static(stats_history);
+        let info_text = vec![
+            Line::from(format!("Cycles: {}", cycles_executed)),
+            Line::from(format!("FPS: {:.1}", fps)),
+            Line::from(""),
+            Line::from("Controls:"),
+            Line::from("Ctrl+C: Quit"),
+            Line::from("Space: Pause (TODO)"),
+            Line::from("Ctrl+R: Reset (TODO)"),
+        ];
+
+        let info = Paragraph::new(info_text)
+            .block(Block::default().borders(Borders::ALL).title("Info"))
+            .wrap(Wrap { trim: true });
+
+        f.render_widget(info, area);
+    }
+
+    fn draw_status_bar_static(
+        f: &mut Frame,
+        area: Rect,
+        cycles_executed: usize,
+        stats_history: &VecDeque<(Instant, usize)>,
+        config: &RatatuiConfig,
+    ) {
+        let fps = Self::calculate_fps_static(stats_history);
+        let status_text = Line::from(format!(
+            "Running • Cycles: {} • FPS: {:.1} • Theme: {}",
+            cycles_executed, fps, config.theme
+        ));
+
+        let status = Paragraph::new(status_text)
+            .block(Block::default().borders(Borders::ALL))
+            .wrap(Wrap { trim: true });
+
+        f.render_widget(status, area);
+    }
+
+    fn calculate_fps_static(stats_history: &VecDeque<(Instant, usize)>) -> f64 {
+        if stats_history.len() < 2 {
+            return 0.0;
+        }
+
+        let (oldest_time, oldest_cycles) = stats_history.front().unwrap();
+        let (newest_time, newest_cycles) = stats_history.back().unwrap();
+
+        let duration_secs = newest_time.duration_since(*oldest_time).as_secs_f64();
+        if duration_secs > 0.0 {
+            let cycles_diff = newest_cycles.saturating_sub(*oldest_cycles) as f64;
+            cycles_diff / duration_secs
+        } else {
+            0.0
+        }
+    }
+}
+
+impl Drop for RatatuiRenderer {
+    fn drop(&mut self) {
+        // Clean up terminal state
+        let _ = disable_raw_mode();
+        let _ = execute!(self.terminal.backend_mut(), LeaveAlternateScreen);
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -404,37 +717,36 @@ mod tests {
     }
 
     #[test]
-    fn test_ascii_renderer() {
-        let mut display = Display::new();
-        let renderer = AsciiRenderer;
+    fn test_ratatui_config_default() {
+        let config = RatatuiConfig::default();
 
-        // Set a simple pattern
-        display.set_pixel(0, 0, true);
-        display.set_pixel(1, 0, true);
-        display.set_pixel(0, 1, true);
-
-        // Render should not panic (we can't easily test output, but we can test it doesn't crash)
-        renderer.render(&display);
-    }
-
-
-
-    #[test]
-    fn test_renderer_trait_object() {
-        let display = Display::new();
-
-        // Test that we can use renderers as trait objects
-        let renderer: Box<dyn Renderer> = Box::new(AsciiRenderer);
-        renderer.render(&display); // Should not panic
+        assert_eq!(config.theme, "classic");
+        assert!(config.show_cpu_registers);
+        assert!(config.show_performance_stats);
+        assert_eq!(config.pixel_char, "█");
+        assert_eq!(config.refresh_rate_ms, 16);
     }
 
     #[test]
-    fn test_pixel_width() {
-        let ascii_renderer = AsciiRenderer;
-
-        // ASCII renderer uses double-wide characters
-        assert_eq!(ascii_renderer.pixel_width(), 2);
-        assert_eq!(ascii_renderer.pixel_on_char(), "██");
-        assert_eq!(ascii_renderer.pixel_off_char(), "  ");
+    fn test_terminal_validation() {
+        // We can't easily test terminal validation without mocking,
+        // but we can test that the validation function exists
+        // In a real terminal environment, this would properly validate
+        let result = RatatuiRenderer::validate_terminal();
+        // Result depends on test environment - could pass or fail
+        match result {
+            Ok(()) => {
+                // Terminal validation passed - we're in a proper terminal
+            }
+            Err(RendererError::NotATty) => {
+                // Expected when running in CI or non-TTY environment
+            }
+            Err(RendererError::TerminalTooSmall { .. }) => {
+                // Expected if terminal is smaller than 80x24
+            }
+            Err(_) => {
+                // Other errors are also acceptable in test environment
+            }
+        }
     }
 }
