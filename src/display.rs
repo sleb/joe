@@ -229,7 +229,7 @@ impl Default for RatatuiConfig {
             show_performance_stats: true,
             show_input_status: true,
             show_memory_info: true,
-            pixel_char: "█".to_string(),
+            pixel_char: "██".to_string(),
             pixel_color: "Green".to_string(),
             border_style: "rounded".to_string(),
             refresh_rate_ms: 16,
@@ -400,20 +400,8 @@ impl RatatuiRenderer {
         // Header
         Self::draw_header_static(f, chunks[0]);
 
-        // Main content area
-        let main_chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Length(66), // Display (64 + 2 for borders)
-                Constraint::Min(0),     // Side panel
-            ])
-            .split(chunks[1]);
-
-        // Display
-        Self::draw_display_static(f, main_chunks[0], display, config);
-
-        // Side panel
-        Self::draw_side_panel_static(f, main_chunks[1], cycles_executed, stats_history);
+        // Use the whole width for the display
+        Self::draw_display_static(f, chunks[1], display, config);
 
         // Status bar
         Self::draw_status_bar_static(f, chunks[2], cycles_executed, stats_history, config);
@@ -439,10 +427,28 @@ impl RatatuiRenderer {
 
     fn draw_display_static(f: &mut Frame, area: Rect, display: &Display, config: &RatatuiConfig) {
         let mut lines = Vec::new();
+        let chip8_width = DISPLAY_WIDTH;
+        let chip8_height = DISPLAY_HEIGHT;
+        let area_width = area.width as usize;
 
-        for y in 0..DISPLAY_HEIGHT {
+        // Calculate the actual character width of each pixel
+        let pixel_char_width = config.pixel_char.chars().count();
+        let total_display_width = chip8_width * pixel_char_width;
+
+        // Calculate horizontal padding for centering
+        let pad_left = if area_width > total_display_width {
+            (area_width - total_display_width) / 2
+        } else {
+            0
+        };
+
+        for y in 0..chip8_height {
             let mut line_spans = Vec::new();
-            for x in 0..DISPLAY_WIDTH {
+            // Add left padding if needed
+            for _ in 0..pad_left {
+                line_spans.push(Span::raw(" "));
+            }
+            for x in 0..chip8_width {
                 let pixel = display.get_pixel(x, y);
                 let pixel_color = RatatuiConfig::parse_color(&config.pixel_color);
                 line_spans.push(Span::styled(
@@ -468,29 +474,7 @@ impl RatatuiRenderer {
         f.render_widget(display_widget, area);
     }
 
-    fn draw_side_panel_static(
-        f: &mut Frame,
-        area: Rect,
-        cycles_executed: usize,
-        stats_history: &VecDeque<(Instant, usize)>,
-    ) {
-        let fps = Self::calculate_fps_static(stats_history);
-        let info_text = vec![
-            Line::from(format!("Cycles: {}", cycles_executed)),
-            Line::from(format!("FPS: {:.1}", fps)),
-            Line::from(""),
-            Line::from("Controls:"),
-            Line::from("Ctrl+C: Quit"),
-            Line::from("Space: Pause (TODO)"),
-            Line::from("Ctrl+R: Reset (TODO)"),
-        ];
-
-        let info = Paragraph::new(info_text)
-            .block(Block::default().borders(Borders::ALL).title("Info"))
-            .wrap(Wrap { trim: true });
-
-        f.render_widget(info, area);
-    }
+    // Side panel removed
 
     fn draw_status_bar_static(
         f: &mut Frame,
@@ -501,7 +485,7 @@ impl RatatuiRenderer {
     ) {
         let fps = Self::calculate_fps_static(stats_history);
         let status_text = Line::from(format!(
-            "Running • Cycles: {} • FPS: {:.1} • Theme: {}",
+            "Running • Cycles: {} • FPS: {:.1} • Theme: {} | Controls: Ctrl+C=Quit, Space=Pause, Ctrl+R=Reset",
             cycles_executed, fps, config.theme
         ));
 
