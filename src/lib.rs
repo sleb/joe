@@ -28,24 +28,23 @@
 //! # Quick Start
 //!
 //! ```rust,no_run
-//! use joe::{Emulator, EmulatorConfig, RatatuiRenderer, RatatuiConfig};
+//! use joe::{Emulator, EmulatorConfig};
 //!
 //! // Create an emulator with default configuration
 //! let mut emulator = Emulator::with_defaults();
-//! let mut renderer = RatatuiRenderer::new(RatatuiConfig::default()).unwrap();
 //!
 //! // Load a ROM file
 //! let rom_data = std::fs::read("game.ch8").unwrap();
 //! emulator.load_rom(&rom_data).unwrap();
 //!
-//! // Run the emulator with interactive terminal UI
-//! emulator.run(&mut renderer).unwrap();
+//! // Run the emulator with integrated terminal UI
+//! emulator.run().unwrap();
 //! ```
 //!
 //! For more control, you can configure the emulator:
 //!
 //! ```rust,no_run
-//! use joe::{Emulator, EmulatorConfig, RatatuiRenderer, RatatuiConfig};
+//! use joe::{Emulator, EmulatorConfig};
 //!
 //! let config = EmulatorConfig {
 //!     max_cycles: 1000,
@@ -55,12 +54,11 @@
 //! };
 //!
 //! let mut emulator = Emulator::new(config);
-//! let mut renderer = RatatuiRenderer::new(RatatuiConfig::default()).unwrap();
 //!
 //! // Load and run ROM
 //! let rom_data = std::fs::read("game.ch8").unwrap();
 //! emulator.load_rom(&rom_data).unwrap();
-//! emulator.run(&mut renderer).unwrap();
+//! emulator.run().unwrap();
 //! ```
 //!
 //! # Memory Layout

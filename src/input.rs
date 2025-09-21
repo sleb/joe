@@ -17,11 +17,21 @@
 //! ```
 
 use std::collections::{HashMap, VecDeque};
+use std::sync::mpsc::Receiver;
 use thiserror::Error;
 
 /// Validate that a key value is in the valid CHIP-8 range (0-15)
 fn is_valid_key(key: u8) -> bool {
     key <= 0xF
+}
+
+/// Key events that can be sent through channels
+#[derive(Debug, Clone, PartialEq)]
+pub enum KeyEvent {
+    /// A key was pressed
+    Pressed(char),
+    /// A key was released
+    Released(char),
 }
 
 /// Errors that can occur during input operations
@@ -47,7 +57,7 @@ pub trait InputBus {
 }
 
 /// CHIP-8 Input system managing the 16-key hexadecimal keypad
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Input {
     /// Current state of all 16 keys (true = pressed, false = released)
     key_states: [bool; 16],
@@ -63,6 +73,9 @@ pub struct Input {
 
     /// Whether we're currently waiting for a key press (for blocking input)
     waiting_for_key: bool,
+
+    /// Optional receiver for key events from external sources (like display renderer)
+    key_receiver: Option<Receiver<KeyEvent>>,
 }
 
 impl Input {
@@ -115,7 +128,15 @@ impl Input {
             reverse_key_map,
             input_buffer: Vec::new(),
             waiting_for_key: false,
+            key_receiver: None,
         })
+    }
+
+    /// Create input system with a key event receiver for channel-based input
+    pub fn with_key_receiver(receiver: Receiver<KeyEvent>) -> Self {
+        let mut input = Self::new();
+        input.key_receiver = Some(receiver);
+        input
     }
 
     /// Create input system from config-style key mappings (String -> String)
@@ -290,8 +311,21 @@ impl InputBus for Input {
     }
 
     fn update(&mut self) {
-        // In a real terminal implementation, this would poll for keyboard events
-        // For now, this is a no-op - input is driven by external calls to process_char_input
+        // Process any pending key events from the channel
+        let mut events_to_process = Vec::new();
+        if let Some(receiver) = &self.key_receiver {
+            while let Ok(event) = receiver.try_recv() {
+                events_to_process.push(event);
+            }
+        }
+
+        // Process events without borrowing issues
+        for event in events_to_process {
+            match event {
+                KeyEvent::Pressed(ch) => self.process_char_input(ch),
+                KeyEvent::Released(ch) => self.process_char_release(ch),
+            }
+        }
     }
 
     fn get_pressed_keys(&self) -> Vec<u8> {
@@ -325,6 +359,15 @@ pub struct MockInput {
 
 impl MockInput {
     pub fn new() -> Self {
+        Self {
+            key_states: [false; 16],
+            key_queue: VecDeque::new(),
+        }
+    }
+
+    /// Create mock input with a key event receiver
+    pub fn with_key_receiver(_receiver: Receiver<KeyEvent>) -> Self {
+        // MockInput doesn't use the receiver - it's for programmatic control
         Self {
             key_states: [false; 16],
             key_queue: VecDeque::new(),

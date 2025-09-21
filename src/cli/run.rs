@@ -1,8 +1,5 @@
 use clap::Parser;
-use joe::{
-    Config, ConfigManager, Emulator, EmulatorConfig, RatatuiConfig, RatatuiRenderer, RomSource,
-    load_rom_data,
-};
+use joe::{Config, ConfigManager, Emulator, EmulatorConfig, RomSource, load_rom_data};
 
 #[derive(Parser)]
 pub struct RunCommand {
@@ -84,12 +81,8 @@ impl RunCommand {
         emulator.load_rom(&rom_data)?;
         println!("ROM loaded at address 0x{:04X}", 0x200);
 
-        // Create ratatui renderer using user configuration
-        let ratatui_config = RatatuiConfig::from_display_settings(&user_config.display);
-        let mut renderer = RatatuiRenderer::new(ratatui_config)?;
-
-        // Run the emulator
-        emulator.run(&mut renderer)?;
+        // Run the emulator (it will create its own renderer with channel integration)
+        emulator.run()?;
         Ok(())
     }
 }

@@ -6,9 +6,11 @@
 //! running CHIP-8 programs.
 
 use crate::display::{ControlAction, RatatuiRenderer};
+use crate::input::KeyEvent;
 use crate::{Cpu, Display, Input, InputBus, Memory};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use thiserror::Error;
 
@@ -118,7 +120,25 @@ impl Emulator {
     }
 
     /// Start the emulation loop
-    pub fn run(&mut self, renderer: &mut RatatuiRenderer) -> Result<(), EmulatorError> {
+    pub fn run(&mut self) -> Result<(), EmulatorError> {
+        // Load user configuration
+        let user_config = crate::config::ConfigManager::new()
+            .and_then(|manager| manager.load())
+            .unwrap_or_else(|e| {
+                eprintln!("Warning: Failed to load config: {}. Using defaults.", e);
+                crate::config::Config::default()
+            });
+
+        // Create key event channel
+        let (key_sender, key_receiver) = mpsc::channel::<KeyEvent>();
+
+        // Create input system with channel receiver
+        self.input = Input::with_key_receiver(key_receiver);
+
+        // Create renderer with key sender
+        let ratatui_config =
+            crate::display::RatatuiConfig::from_display_settings(&user_config.display);
+        let mut renderer = RatatuiRenderer::new_with_key_sender(ratatui_config, Some(key_sender))?;
         self.is_running.store(true, Ordering::SeqCst);
         self.cycles_executed = 0;
 
@@ -186,8 +206,24 @@ impl Emulator {
                         break;
                     }
 
-                    // Smart display rendering: only update if display changed or enough time passed
-                    self.render_display_if_needed(renderer)?;
+                    // Handle display rendering and control actions
+                    match renderer.render(&self.display, self.cycles_executed)? {
+                        ControlAction::Quit => {
+                            println!("\nReceived quit command, stopping...");
+                            break;
+                        }
+                        ControlAction::Reset => {
+                            println!("\nResetting emulator...");
+                            self.reset();
+                        }
+                        ControlAction::TogglePause => {
+                            // TODO: Implement pause functionality
+                            println!("\nPause/Resume functionality not yet implemented");
+                        }
+                        ControlAction::None => {
+                            // Continue normal execution
+                        }
+                    }
                 }
                 Err(e) => {
                     println!("Execution error at cycle {}: {}", self.cycles_executed, e);
@@ -263,34 +299,6 @@ impl Emulator {
         self.is_running.store(false, Ordering::SeqCst);
         self.last_display_hash = 0;
         self.last_render_time = Instant::now();
-    }
-
-    /// Render display using ratatui renderer
-    fn render_display_if_needed(
-        &mut self,
-        renderer: &mut RatatuiRenderer,
-    ) -> Result<(), EmulatorError> {
-        // The RatatuiRenderer handles its own timing and event processing
-        let control_action = renderer.render(&self.display, self.cycles_executed)?;
-
-        // Handle any control actions from the renderer
-        match control_action {
-            ControlAction::None => {}
-            ControlAction::Reset => {
-                println!("\nReset requested, restarting emulator state...");
-                self.reset();
-            }
-            ControlAction::TogglePause => {
-                println!("\nPause/Resume requested (not yet implemented)");
-                // TODO: Implement pause/resume functionality
-            }
-            ControlAction::Quit => {
-                println!("\nQuit requested via renderer");
-                self.is_running.store(false, Ordering::SeqCst);
-            }
-        }
-
-        Ok(())
     }
 
     /// Show final statistics and display state
