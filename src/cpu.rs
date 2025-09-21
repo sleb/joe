@@ -134,7 +134,7 @@ impl Cpu {
                 // Blocked on key input - check if key is now available
                 match input.try_get_key_press() {
                     Some(key) => {
-                        self.v[vx] = key.to_u8();
+                        self.v[vx] = key;
                         self.state = CpuState::Running;
                         Ok(())
                     }
@@ -307,14 +307,14 @@ impl Cpu {
             }
             Instruction::SkipKeyPressed { vx } => {
                 let key = self.v[vx] & 0x0F;
-                if input.is_key_pressed_u8(key)? {
+                if input.is_key_pressed(key)? {
                     self.pc += 2; // Skip next instruction
                 }
                 Ok(())
             }
             Instruction::SkipKeyNotPressed { vx } => {
                 let key = self.v[vx] & 0x0F;
-                if !input.is_key_pressed_u8(key)? {
+                if !input.is_key_pressed(key)? {
                     self.pc += 2; // Skip next instruction
                 }
                 Ok(())
@@ -341,7 +341,7 @@ impl Cpu {
                 // Try to get a key press immediately
                 match input.try_get_key_press() {
                     Some(key) => {
-                        self.v[vx] = key.to_u8();
+                        self.v[vx] = key;
                         Ok(())
                     }
                     None => {
@@ -766,7 +766,7 @@ mod tests {
         // Test with key pressed (use fresh CPU instance)
         let mut cpu2 = Cpu::new();
         cpu2.set_register(0, 5).unwrap();
-        input.press_key_u8(5).unwrap();
+        input.press_key(5).unwrap();
 
         let initial_pc2 = cpu2.get_pc();
         cpu2.execute_cycle(&mut memory, &mut display, &mut input)
@@ -796,7 +796,7 @@ mod tests {
         // Test with key pressed (use fresh CPU instance)
         let mut cpu2 = Cpu::new();
         cpu2.set_register(1, 7).unwrap();
-        input.press_key_u8(7).unwrap();
+        input.press_key(7).unwrap();
 
         let initial_pc2 = cpu2.get_pc();
         cpu2.execute_cycle(&mut memory, &mut display, &mut input)
@@ -830,7 +830,7 @@ mod tests {
         assert_eq!(*cpu.get_state(), CpuState::WaitingForKey { vx: 2 });
 
         // Press key 0xB and cycle again - should resume execution
-        input.press_key_u8(0xB).unwrap();
+        input.press_key(0xB).unwrap();
         cpu.execute_cycle(&mut memory, &mut display, &mut input)
             .unwrap();
 
@@ -848,7 +848,7 @@ mod tests {
 
         // Set V0 = 0x5 and press key 0x5
         cpu.set_register(0, 0x5).unwrap();
-        input.press_key_u8(0x5).unwrap();
+        input.press_key(0x5).unwrap();
 
         // SKP V0 instruction (0xE09E)
         memory.write_word(PROGRAM_START_ADDR, 0xE09E).unwrap();
@@ -912,7 +912,7 @@ mod tests {
 
         // Set V0 = 0x5 and press key 0x5
         cpu.set_register(0, 0x5).unwrap();
-        input.press_key_u8(0x5).unwrap();
+        input.press_key(0x5).unwrap();
 
         // SKNP V0 instruction (0xE0A1)
         memory.write_word(PROGRAM_START_ADDR, 0xE0A1).unwrap();
@@ -934,7 +934,7 @@ mod tests {
 
         // Set V0 = 0x15 (high bits should be masked to 0x5)
         cpu.set_register(0, 0x15).unwrap();
-        input.press_key_u8(0x5).unwrap(); // Press the masked key
+        input.press_key(0x5).unwrap(); // Press the masked key
 
         // SKP V0 instruction (0xE09E) - should treat 0x15 as 0x5
         memory.write_word(PROGRAM_START_ADDR, 0xE09E).unwrap();
@@ -954,8 +954,8 @@ mod tests {
         let mut display = Display::new();
         let mut input = MockInput::new();
 
-        // Press key 0x7 before executing instruction
-        input.press_key_u8(0x7).unwrap();
+        // Press key 0xA before executing instruction
+        input.press_key(0xA).unwrap();
 
         // LD V3, K instruction (0xF30A)
         memory.write_word(PROGRAM_START_ADDR, 0xF30A).unwrap();
@@ -965,7 +965,7 @@ mod tests {
             .unwrap();
 
         // Should store key immediately and stay in running state
-        assert_eq!(cpu.get_register(3).unwrap(), 0x7);
+        assert_eq!(cpu.get_register(3).unwrap(), 0xA);
         assert_eq!(*cpu.get_state(), CpuState::Running);
         assert_eq!(cpu.get_pc(), initial_pc + 2);
     }
@@ -993,7 +993,7 @@ mod tests {
         }
 
         // Press key and cycle - should resume and store key
-        input.press_key_u8(0xA).unwrap();
+        input.press_key(0xA).unwrap();
         cpu.execute_cycle(&mut memory, &mut display, &mut input)
             .unwrap();
 

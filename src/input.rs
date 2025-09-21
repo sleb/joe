@@ -19,77 +19,9 @@
 use std::collections::{HashMap, VecDeque};
 use thiserror::Error;
 
-/// CHIP-8 key values (0-F hexadecimal)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ChipKey {
-    Key0 = 0x0,
-    Key1 = 0x1,
-    Key2 = 0x2,
-    Key3 = 0x3,
-    Key4 = 0x4,
-    Key5 = 0x5,
-    Key6 = 0x6,
-    Key7 = 0x7,
-    Key8 = 0x8,
-    Key9 = 0x9,
-    KeyA = 0xA,
-    KeyB = 0xB,
-    KeyC = 0xC,
-    KeyD = 0xD,
-    KeyE = 0xE,
-    KeyF = 0xF,
-}
-
-impl ChipKey {
-    /// Convert from u8 to ChipKey
-    pub fn from_u8(value: u8) -> Option<Self> {
-        match value {
-            0x0 => Some(ChipKey::Key0),
-            0x1 => Some(ChipKey::Key1),
-            0x2 => Some(ChipKey::Key2),
-            0x3 => Some(ChipKey::Key3),
-            0x4 => Some(ChipKey::Key4),
-            0x5 => Some(ChipKey::Key5),
-            0x6 => Some(ChipKey::Key6),
-            0x7 => Some(ChipKey::Key7),
-            0x8 => Some(ChipKey::Key8),
-            0x9 => Some(ChipKey::Key9),
-            0xA => Some(ChipKey::KeyA),
-            0xB => Some(ChipKey::KeyB),
-            0xC => Some(ChipKey::KeyC),
-            0xD => Some(ChipKey::KeyD),
-            0xE => Some(ChipKey::KeyE),
-            0xF => Some(ChipKey::KeyF),
-            _ => None,
-        }
-    }
-
-    /// Convert to u8
-    pub fn to_u8(self) -> u8 {
-        self as u8
-    }
-
-    /// Get all keys as an array
-    pub fn all_keys() -> [ChipKey; 16] {
-        [
-            ChipKey::Key0,
-            ChipKey::Key1,
-            ChipKey::Key2,
-            ChipKey::Key3,
-            ChipKey::Key4,
-            ChipKey::Key5,
-            ChipKey::Key6,
-            ChipKey::Key7,
-            ChipKey::Key8,
-            ChipKey::Key9,
-            ChipKey::KeyA,
-            ChipKey::KeyB,
-            ChipKey::KeyC,
-            ChipKey::KeyD,
-            ChipKey::KeyE,
-            ChipKey::KeyF,
-        ]
-    }
+/// Validate that a key value is in the valid CHIP-8 range (0-15)
+fn is_valid_key(key: u8) -> bool {
+    key <= 0xF
 }
 
 /// Errors that can occur during input operations
@@ -102,37 +34,16 @@ pub enum InputError {
 /// Trait for input handling - allows for different input backends
 pub trait InputBus {
     /// Check if a specific key is currently pressed
-    fn is_key_pressed(&self, key: ChipKey) -> bool;
-
-    /// Check if a key by u8 value is currently pressed (for compatibility)
-    fn is_key_pressed_u8(&self, key: u8) -> Result<bool, InputError> {
-        match ChipKey::from_u8(key) {
-            Some(chip_key) => Ok(self.is_key_pressed(chip_key)),
-            None => Err(InputError::InvalidKey { key }),
-        }
-    }
+    fn is_key_pressed(&self, key: u8) -> Result<bool, InputError>;
 
     /// Try to get a key press without blocking - returns None if no key available
-    fn try_get_key_press(&mut self) -> Option<ChipKey>;
-
-    /// Try to get a key press as u8 without blocking (for compatibility)
-    fn try_get_key_press_u8(&mut self) -> Option<u8> {
-        self.try_get_key_press().map(|key| key.to_u8())
-    }
+    fn try_get_key_press(&mut self) -> Option<u8>;
 
     /// Update the input state (called each frame)
     fn update(&mut self);
 
     /// Get a list of currently pressed keys
-    fn get_pressed_keys(&self) -> Vec<ChipKey>;
-
-    /// Get a list of currently pressed keys as u8 values (for compatibility)
-    fn get_pressed_keys_u8(&self) -> Vec<u8> {
-        self.get_pressed_keys()
-            .iter()
-            .map(|key| key.to_u8())
-            .collect()
-    }
+    fn get_pressed_keys(&self) -> Vec<u8>;
 }
 
 /// CHIP-8 Input system managing the 16-key hexadecimal keypad
@@ -141,11 +52,11 @@ pub struct Input {
     /// Current state of all 16 keys (true = pressed, false = released)
     key_states: [bool; 16],
 
-    /// Keyboard mapping from char to CHIP-8 key value
-    key_map: HashMap<char, ChipKey>,
+    /// Keyboard mapping from char to CHIP-8 key value (0-15)
+    key_map: HashMap<char, u8>,
 
     /// Reverse mapping from CHIP-8 key to keyboard char
-    reverse_key_map: HashMap<ChipKey, char>,
+    reverse_key_map: HashMap<u8, char>,
 
     /// Buffer for input events
     input_buffer: Vec<char>,
@@ -159,33 +70,37 @@ impl Input {
     pub fn new() -> Self {
         // Standard QWERTY keyboard mapping to CHIP-8 keypad
         let default_mappings = [
-            ('1', ChipKey::Key1),
-            ('2', ChipKey::Key2),
-            ('3', ChipKey::Key3),
-            ('4', ChipKey::KeyC),
-            ('q', ChipKey::Key4),
-            ('w', ChipKey::Key5),
-            ('e', ChipKey::Key6),
-            ('r', ChipKey::KeyD),
-            ('a', ChipKey::Key7),
-            ('s', ChipKey::Key8),
-            ('d', ChipKey::Key9),
-            ('f', ChipKey::KeyE),
-            ('z', ChipKey::KeyA),
-            ('x', ChipKey::Key0),
-            ('c', ChipKey::KeyB),
-            ('v', ChipKey::KeyF),
+            ('1', 0x1),
+            ('2', 0x2),
+            ('3', 0x3),
+            ('4', 0xC),
+            ('q', 0x4),
+            ('w', 0x5),
+            ('e', 0x6),
+            ('r', 0xD),
+            ('a', 0x7),
+            ('s', 0x8),
+            ('d', 0x9),
+            ('f', 0xE),
+            ('z', 0xA),
+            ('x', 0x0),
+            ('c', 0xB),
+            ('v', 0xF),
         ];
 
         Self::with_key_map(&default_mappings).expect("Default key mappings should be valid")
     }
 
     /// Create input system with custom key mapping
-    pub fn with_key_map(mappings: &[(char, ChipKey)]) -> Result<Self, InputError> {
+    pub fn with_key_map(mappings: &[(char, u8)]) -> Result<Self, InputError> {
         let mut key_map = HashMap::new();
         let mut reverse_key_map = HashMap::new();
 
         for &(keyboard_key, chip8_key) in mappings {
+            if !is_valid_key(chip8_key) {
+                return Err(InputError::InvalidKey { key: chip8_key });
+            }
+
             key_map.insert(keyboard_key, chip8_key);
             let upper = keyboard_key.to_ascii_uppercase();
             if upper != keyboard_key {
@@ -203,52 +118,60 @@ impl Input {
         })
     }
 
+    /// Create input system from config-style key mappings (String -> String)
+    pub fn from_config_mappings(mappings: &HashMap<String, String>) -> Result<Self, InputError> {
+        let mut converted_mappings = Vec::new();
+
+        for (chip8_key_str, keyboard_key_str) in mappings {
+            // Parse CHIP-8 key from hex string
+            let chip8_key = u8::from_str_radix(chip8_key_str, 16)
+                .map_err(|_| InputError::InvalidKey { key: 255 })?; // Use 255 as invalid placeholder
+
+            if !is_valid_key(chip8_key) {
+                return Err(InputError::InvalidKey { key: chip8_key });
+            }
+
+            // Take first char of keyboard key string
+            if let Some(keyboard_char) = keyboard_key_str.chars().next() {
+                converted_mappings.push((keyboard_char.to_ascii_lowercase(), chip8_key));
+            }
+        }
+
+        Self::with_key_map(&converted_mappings)
+    }
+
     /// Get the keyboard character mapped to a CHIP-8 key
-    pub fn get_keyboard_key(&self, chip8_key: ChipKey) -> Option<char> {
+    pub fn get_keyboard_key(&self, chip8_key: u8) -> Option<char> {
         self.reverse_key_map.get(&chip8_key).copied()
     }
 
     /// Get the CHIP-8 key value for a keyboard character
-    pub fn get_chip8_key(&self, keyboard_key: char) -> Option<ChipKey> {
+    pub fn get_chip8_key(&self, keyboard_key: char) -> Option<u8> {
         self.key_map.get(&keyboard_key).copied()
     }
 
     /// Press a key (for testing or programmatic input)
-    pub fn press_key(&mut self, key: ChipKey) {
-        self.key_states[key.to_u8() as usize] = true;
-    }
-
-    /// Press a key by u8 value (for compatibility)
-    pub fn press_key_u8(&mut self, key: u8) -> Result<(), InputError> {
-        match ChipKey::from_u8(key) {
-            Some(chip_key) => {
-                self.press_key(chip_key);
-                Ok(())
-            }
-            None => Err(InputError::InvalidKey { key }),
+    pub fn press_key(&mut self, key: u8) -> Result<(), InputError> {
+        if !is_valid_key(key) {
+            return Err(InputError::InvalidKey { key });
         }
+        self.key_states[key as usize] = true;
+        Ok(())
     }
 
     /// Release a key (for testing or programmatic input)
-    pub fn release_key(&mut self, key: ChipKey) {
-        self.key_states[key.to_u8() as usize] = false;
-    }
-
-    /// Release a key by u8 value (for compatibility)
-    pub fn release_key_u8(&mut self, key: u8) -> Result<(), InputError> {
-        match ChipKey::from_u8(key) {
-            Some(chip_key) => {
-                self.release_key(chip_key);
-                Ok(())
-            }
-            None => Err(InputError::InvalidKey { key }),
+    pub fn release_key(&mut self, key: u8) -> Result<(), InputError> {
+        if !is_valid_key(key) {
+            return Err(InputError::InvalidKey { key });
         }
+        self.key_states[key as usize] = false;
+        Ok(())
     }
 
     /// Process keyboard character input
     pub fn process_char_input(&mut self, ch: char) {
-        if let Some(chip8_key) = self.get_chip8_key(ch) {
-            self.key_states[chip8_key.to_u8() as usize] = true;
+        if let Some(chip8_key_value) = self.get_chip8_key(ch) {
+            self.key_states[chip8_key_value as usize] = true;
             // Add to buffer for key waiting (only when mapped)
             self.input_buffer.push(ch);
         }
@@ -256,8 +179,8 @@ impl Input {
 
     /// Process key release
     pub fn process_char_release(&mut self, ch: char) {
-        if let Some(chip8_key) = self.get_chip8_key(ch) {
-            self.key_states[chip8_key.to_u8() as usize] = false;
+        if let Some(chip8_key_value) = self.get_chip8_key(ch) {
+            self.key_states[chip8_key_value as usize] = false;
         }
     }
 
@@ -292,33 +215,33 @@ impl Input {
         for row in 0..4 {
             print!("│");
             for col in 0..4 {
-                let key = match (row, col) {
-                    (0, 0) => ChipKey::Key1,
-                    (0, 1) => ChipKey::Key2,
-                    (0, 2) => ChipKey::Key3,
-                    (0, 3) => ChipKey::KeyC,
-                    (1, 0) => ChipKey::Key4,
-                    (1, 1) => ChipKey::Key5,
-                    (1, 2) => ChipKey::Key6,
-                    (1, 3) => ChipKey::KeyD,
-                    (2, 0) => ChipKey::Key7,
-                    (2, 1) => ChipKey::Key8,
-                    (2, 2) => ChipKey::Key9,
-                    (2, 3) => ChipKey::KeyE,
-                    (3, 0) => ChipKey::KeyA,
-                    (3, 1) => ChipKey::Key0,
-                    (3, 2) => ChipKey::KeyB,
-                    (3, 3) => ChipKey::KeyF,
+                let key_value = match (row, col) {
+                    (0, 0) => 0x1,
+                    (0, 1) => 0x2,
+                    (0, 2) => 0x3,
+                    (0, 3) => 0xC,
+                    (1, 0) => 0x4,
+                    (1, 1) => 0x5,
+                    (1, 2) => 0x6,
+                    (1, 3) => 0xD,
+                    (2, 0) => 0x7,
+                    (2, 1) => 0x8,
+                    (2, 2) => 0x9,
+                    (2, 3) => 0xE,
+                    (3, 0) => 0xA,
+                    (3, 1) => 0x0,
+                    (3, 2) => 0xB,
+                    (3, 3) => 0xF,
                     _ => unreachable!(),
                 };
 
-                let state = if self.key_states[key.to_u8() as usize] {
+                let state = if self.key_states[key_value as usize] {
                     "█"
                 } else {
                     " "
                 };
-                let key_char = self.get_keyboard_key(key).unwrap_or('?');
-                print!(" {}{:X}{} │", state, key.to_u8(), key_char);
+                let key_char = self.get_keyboard_key(key_value).unwrap_or('?');
+                print!(" {}{:X}{} │", state, key_value, key_char);
             }
             println!();
             if row < 3 {
@@ -327,7 +250,7 @@ impl Input {
         }
         println!("└─────┴─────┴─────┴─────┘");
 
-        let pressed_keys: Vec<ChipKey> = self.get_pressed_keys();
+        let pressed_keys: Vec<u8> = self.get_pressed_keys();
         if !pressed_keys.is_empty() {
             println!("Pressed keys: {:?}", pressed_keys);
         }
@@ -341,11 +264,14 @@ impl Default for Input {
 }
 
 impl InputBus for Input {
-    fn is_key_pressed(&self, key: ChipKey) -> bool {
-        self.key_states[key.to_u8() as usize]
+    fn is_key_pressed(&self, key: u8) -> Result<bool, InputError> {
+        if !is_valid_key(key) {
+            return Err(InputError::InvalidKey { key });
+        }
+        Ok(self.key_states[key as usize])
     }
 
-    fn try_get_key_press(&mut self) -> Option<ChipKey> {
+    fn try_get_key_press(&mut self) -> Option<u8> {
         // Check if any key is currently pressed
         let pressed_keys = self.get_pressed_keys();
         if let Some(&first_key) = pressed_keys.first() {
@@ -354,8 +280,8 @@ impl InputBus for Input {
 
         // Check input buffer for recent key presses
         while let Some(ch) = self.input_buffer.pop() {
-            if let Some(chip8_key) = self.get_chip8_key(ch) {
-                return Some(chip8_key);
+            if let Some(chip8_key_value) = self.get_chip8_key(ch) {
+                return Some(chip8_key_value);
             }
         }
 
@@ -368,17 +294,11 @@ impl InputBus for Input {
         // For now, this is a no-op - input is driven by external calls to process_char_input
     }
 
-    fn get_pressed_keys(&self) -> Vec<ChipKey> {
+    fn get_pressed_keys(&self) -> Vec<u8> {
         self.key_states
             .iter()
             .enumerate()
-            .filter_map(|(i, &pressed)| {
-                if pressed {
-                    ChipKey::from_u8(i as u8)
-                } else {
-                    None
-                }
-            })
+            .filter_map(|(i, &pressed)| if pressed { Some(i as u8) } else { None })
             .collect()
     }
 }
@@ -400,7 +320,7 @@ pub struct InputStats {
 #[derive(Debug, Clone)]
 pub struct MockInput {
     key_states: [bool; 16],
-    key_queue: VecDeque<ChipKey>,
+    key_queue: VecDeque<u8>,
 }
 
 impl MockInput {
@@ -411,33 +331,21 @@ impl MockInput {
         }
     }
 
-    pub fn press_key(&mut self, key: ChipKey) {
-        self.key_states[key.to_u8() as usize] = true;
+    pub fn press_key(&mut self, key: u8) -> Result<(), InputError> {
+        if !is_valid_key(key) {
+            return Err(InputError::InvalidKey { key });
+        }
+        self.key_states[key as usize] = true;
         self.key_queue.push_back(key);
+        Ok(())
     }
 
-    pub fn press_key_u8(&mut self, key: u8) -> Result<(), InputError> {
-        match ChipKey::from_u8(key) {
-            Some(chip_key) => {
-                self.press_key(chip_key);
-                Ok(())
-            }
-            None => Err(InputError::InvalidKey { key }),
+    pub fn release_key(&mut self, key: u8) -> Result<(), InputError> {
+        if !is_valid_key(key) {
+            return Err(InputError::InvalidKey { key });
         }
-    }
-
-    pub fn release_key(&mut self, key: ChipKey) {
-        self.key_states[key.to_u8() as usize] = false;
-    }
-
-    pub fn release_key_u8(&mut self, key: u8) -> Result<(), InputError> {
-        match ChipKey::from_u8(key) {
-            Some(chip_key) => {
-                self.release_key(chip_key);
-                Ok(())
-            }
-            None => Err(InputError::InvalidKey { key }),
-        }
+        self.key_states[key as usize] = false;
+        Ok(())
     }
 
     pub fn clear_all(&mut self) {
@@ -453,11 +361,14 @@ impl Default for MockInput {
 }
 
 impl InputBus for MockInput {
-    fn is_key_pressed(&self, key: ChipKey) -> bool {
-        self.key_states[key.to_u8() as usize]
+    fn is_key_pressed(&self, key: u8) -> Result<bool, InputError> {
+        if !is_valid_key(key) {
+            return Err(InputError::InvalidKey { key });
+        }
+        Ok(self.key_states[key as usize])
     }
 
-    fn try_get_key_press(&mut self) -> Option<ChipKey> {
+    fn try_get_key_press(&mut self) -> Option<u8> {
         self.key_queue.pop_front()
     }
 
@@ -465,17 +376,11 @@ impl InputBus for MockInput {
         // No-op for mock
     }
 
-    fn get_pressed_keys(&self) -> Vec<ChipKey> {
+    fn get_pressed_keys(&self) -> Vec<u8> {
         self.key_states
             .iter()
             .enumerate()
-            .filter_map(|(i, &pressed)| {
-                if pressed {
-                    ChipKey::from_u8(i as u8)
-                } else {
-                    None
-                }
-            })
+            .filter_map(|(i, &pressed)| if pressed { Some(i as u8) } else { None })
             .collect()
     }
 }
@@ -489,8 +394,8 @@ mod tests {
         let input = Input::new();
 
         // All keys should be released initially
-        for key in ChipKey::all_keys() {
-            assert!(!input.is_key_pressed(key));
+        for i in 0..16 {
+            assert!(!input.is_key_pressed(i).unwrap());
         }
     }
 
@@ -499,37 +404,32 @@ mod tests {
         let input = Input::new();
 
         // Test standard mappings
-        assert_eq!(input.get_chip8_key('1'), Some(ChipKey::Key1));
-        assert_eq!(input.get_chip8_key('2'), Some(ChipKey::Key2));
-        assert_eq!(input.get_chip8_key('3'), Some(ChipKey::Key3));
-        assert_eq!(input.get_chip8_key('4'), Some(ChipKey::KeyC));
+        assert_eq!(input.get_chip8_key('1'), Some(0x1));
+        assert_eq!(input.get_chip8_key('2'), Some(0x2));
+        assert_eq!(input.get_chip8_key('3'), Some(0x3));
+        assert_eq!(input.get_chip8_key('4'), Some(0xC));
 
-        assert_eq!(input.get_chip8_key('q'), Some(ChipKey::Key4));
-        assert_eq!(input.get_chip8_key('Q'), Some(ChipKey::Key4)); // Case insensitive
+        assert_eq!(input.get_chip8_key('q'), Some(0x4));
+        assert_eq!(input.get_chip8_key('Q'), Some(0x4)); // Case insensitive
 
-        assert_eq!(input.get_chip8_key('x'), Some(ChipKey::Key0));
-        assert_eq!(input.get_chip8_key('v'), Some(ChipKey::KeyF));
+        assert_eq!(input.get_chip8_key('x'), Some(0x0));
+        assert_eq!(input.get_chip8_key('v'), Some(0xF));
 
         // Test reverse mapping
-        assert_eq!(input.get_keyboard_key(ChipKey::Key1), Some('1'));
-        assert_eq!(input.get_keyboard_key(ChipKey::Key4), Some('q'));
-        assert_eq!(input.get_keyboard_key(ChipKey::Key0), Some('x'));
-        assert_eq!(input.get_keyboard_key(ChipKey::KeyF), Some('v'));
+        assert_eq!(input.get_keyboard_key(0x1), Some('1'));
+        assert_eq!(input.get_keyboard_key(0x4), Some('q'));
+        assert_eq!(input.get_keyboard_key(0x0), Some('x'));
+        assert_eq!(input.get_keyboard_key(0xF), Some('v'));
     }
 
     #[test]
     fn test_custom_key_mapping() {
-        let mappings = [
-            ('a', ChipKey::Key0),
-            ('b', ChipKey::Key1),
-            ('c', ChipKey::Key2),
-            ('d', ChipKey::Key3),
-        ];
+        let mappings = [('a', 0x0), ('b', 0x1), ('c', 0x2), ('d', 0x3)];
         let input = Input::with_key_map(&mappings).unwrap();
 
-        assert_eq!(input.get_chip8_key('a'), Some(ChipKey::Key0));
-        assert_eq!(input.get_chip8_key('A'), Some(ChipKey::Key0)); // Case insensitive
-        assert_eq!(input.get_chip8_key('d'), Some(ChipKey::Key3));
+        assert_eq!(input.get_chip8_key('a'), Some(0x0));
+        assert_eq!(input.get_chip8_key('A'), Some(0x0)); // Case insensitive
+        assert_eq!(input.get_chip8_key('d'), Some(0x3));
 
         // Old mappings should not work
         assert_eq!(input.get_chip8_key('1'), None);
@@ -537,18 +437,15 @@ mod tests {
     }
 
     #[test]
-    fn test_chip_key_conversion() {
-        // Test valid conversions
-        assert_eq!(ChipKey::from_u8(0), Some(ChipKey::Key0));
-        assert_eq!(ChipKey::from_u8(15), Some(ChipKey::KeyF));
+    fn test_key_validation() {
+        // Test valid keys
+        for i in 0..=15 {
+            assert!(is_valid_key(i));
+        }
 
-        // Test invalid conversions
-        assert_eq!(ChipKey::from_u8(16), None);
-        assert_eq!(ChipKey::from_u8(255), None);
-
-        // Test to_u8
-        assert_eq!(ChipKey::Key0.to_u8(), 0);
-        assert_eq!(ChipKey::KeyF.to_u8(), 15);
+        // Test invalid keys
+        assert!(!is_valid_key(16));
+        assert!(!is_valid_key(255));
     }
 
     #[test]
@@ -556,34 +453,34 @@ mod tests {
         let mut input = Input::new();
 
         // Press key 5
-        input.press_key(ChipKey::Key5);
-        assert!(input.is_key_pressed(ChipKey::Key5));
-        assert!(!input.is_key_pressed(ChipKey::Key4));
+        input.press_key(5).unwrap();
+        assert!(input.is_key_pressed(5).unwrap());
+        assert!(!input.is_key_pressed(4).unwrap());
 
         // Release key 5
-        input.release_key(ChipKey::Key5);
-        assert!(!input.is_key_pressed(ChipKey::Key5));
+        input.release_key(5).unwrap();
+        assert!(!input.is_key_pressed(5).unwrap());
     }
 
     #[test]
     fn test_invalid_key_operations() {
         let mut input = Input::new();
 
-        // Test invalid key press via u8 API
+        // Test invalid key press
         assert!(matches!(
-            input.press_key_u8(16),
+            input.press_key(16),
             Err(InputError::InvalidKey { key: 16 })
         ));
 
-        // Test invalid key release via u8 API
+        // Test invalid key release
         assert!(matches!(
-            input.release_key_u8(16),
+            input.release_key(16),
             Err(InputError::InvalidKey { key: 16 })
         ));
 
-        // Test invalid key check via u8 API
+        // Test invalid key check
         assert!(matches!(
-            input.is_key_pressed_u8(16),
+            input.is_key_pressed(16),
             Err(InputError::InvalidKey { key: 16 })
         ));
     }
@@ -594,11 +491,11 @@ mod tests {
 
         // Process character input
         input.process_char_input('q');
-        assert!(input.is_key_pressed(ChipKey::Key4)); // 'q' maps to Key4
+        assert!(input.is_key_pressed(4).unwrap()); // 'q' maps to Key4
 
         // Process character release
         input.process_char_release('q');
-        assert!(!input.is_key_pressed(ChipKey::Key4));
+        assert!(!input.is_key_pressed(4).unwrap());
     }
 
     #[test]
@@ -606,20 +503,20 @@ mod tests {
         let mut input = Input::new();
 
         // Press several keys
-        input.press_key(ChipKey::Key1);
-        input.press_key(ChipKey::Key5);
-        input.press_key(ChipKey::KeyA);
+        input.press_key(1).unwrap();
+        input.press_key(5).unwrap();
+        input.press_key(10).unwrap();
 
-        assert!(input.is_key_pressed(ChipKey::Key1));
-        assert!(input.is_key_pressed(ChipKey::Key5));
-        assert!(input.is_key_pressed(ChipKey::KeyA));
+        assert!(input.is_key_pressed(1).unwrap());
+        assert!(input.is_key_pressed(5).unwrap());
+        assert!(input.is_key_pressed(10).unwrap());
 
         // Clear all keys
         input.clear_all_keys();
 
         // All keys should be released
-        for key in ChipKey::all_keys() {
-            assert!(!input.is_key_pressed(key));
+        for i in 0..16 {
+            assert!(!input.is_key_pressed(i).unwrap());
         }
     }
 
@@ -631,15 +528,15 @@ mod tests {
         assert!(input.get_pressed_keys().is_empty());
 
         // Press some keys
-        input.press_key(ChipKey::Key2);
-        input.press_key(ChipKey::Key7);
-        input.press_key(ChipKey::KeyF);
+        input.press_key(2).unwrap();
+        input.press_key(7).unwrap();
+        input.press_key(15).unwrap();
 
         let pressed = input.get_pressed_keys();
         assert_eq!(pressed.len(), 3);
-        assert!(pressed.contains(&ChipKey::Key2));
-        assert!(pressed.contains(&ChipKey::Key7));
-        assert!(pressed.contains(&ChipKey::KeyF));
+        assert!(pressed.contains(&2));
+        assert!(pressed.contains(&7));
+        assert!(pressed.contains(&15));
     }
 
     #[test]
@@ -653,34 +550,11 @@ mod tests {
         assert!(!stats.waiting_for_input);
 
         // Press some keys
-        input.press_key(ChipKey::Key1);
-        input.press_key(ChipKey::Key5);
+        input.press_key(1).unwrap();
+        input.press_key(5).unwrap();
 
         let stats = input.get_stats();
         assert_eq!(stats.pressed_keys, 2);
-    }
-
-    #[test]
-    fn test_mock_input() {
-        let mut mock = MockInput::new();
-
-        // Test key press
-        mock.press_key(ChipKey::Key5);
-        assert!(mock.is_key_pressed(ChipKey::Key5));
-
-        // Test key release
-        mock.release_key(ChipKey::Key5);
-        assert!(!mock.is_key_pressed(ChipKey::Key5));
-
-        // Clear queue from previous operations
-        mock.clear_all();
-
-        // Test key queue - pressing key adds to both state and queue
-        mock.press_key(ChipKey::Key3);
-        assert_eq!(mock.try_get_key_press().unwrap(), ChipKey::Key3);
-
-        // Queue should be empty now
-        assert!(mock.try_get_key_press().is_none());
     }
 
     #[test]
@@ -691,7 +565,7 @@ mod tests {
         input.process_char_input('w'); // Maps to Key5
 
         // Should return the key (either from pressed state or buffer)
-        assert_eq!(input.try_get_key_press().unwrap(), ChipKey::Key5);
+        assert_eq!(input.try_get_key_press().unwrap(), 5);
 
         // Release the key and clear buffer, then should return None
         input.process_char_release('w');
@@ -700,20 +574,18 @@ mod tests {
     }
 
     #[test]
-    fn test_mock_input_fifo_behavior() {
-        let mut mock = MockInput::new();
+    fn test_config_mapping_conversion() {
+        use std::collections::HashMap;
 
-        // Press keys in order: A, B, C
-        mock.press_key(ChipKey::KeyA);
-        mock.press_key(ChipKey::KeyB);
-        mock.press_key(ChipKey::KeyC);
+        let mut config_mappings = HashMap::new();
+        config_mappings.insert("0".to_string(), "X".to_string());
+        config_mappings.insert("1".to_string(), "1".to_string());
+        config_mappings.insert("F".to_string(), "V".to_string());
 
-        // Should return keys in FIFO order (first in, first out)
-        assert_eq!(mock.try_get_key_press().unwrap(), ChipKey::KeyA);
-        assert_eq!(mock.try_get_key_press().unwrap(), ChipKey::KeyB);
-        assert_eq!(mock.try_get_key_press().unwrap(), ChipKey::KeyC);
+        let input = Input::from_config_mappings(&config_mappings).unwrap();
 
-        // Queue should be empty now
-        assert!(mock.try_get_key_press().is_none());
+        assert_eq!(input.get_chip8_key('x'), Some(0x0));
+        assert_eq!(input.get_chip8_key('1'), Some(0x1));
+        assert_eq!(input.get_chip8_key('v'), Some(0xF));
     }
 }

@@ -109,7 +109,7 @@ pub use display::{
     RendererError,
 };
 pub use emulator::{Emulator, EmulatorConfig, EmulatorError, EmulatorStats};
-pub use input::{ChipKey, Input, InputBus, InputError, InputStats, MockInput};
+pub use input::{Input, InputBus, InputError, InputStats, MockInput};
 pub use instruction::{DecodeError, Instruction, decode_opcode};
 pub use memory::{Memory, MemoryBus, MemoryError, MemoryStats};
 pub use rom_loader::{RomLoaderConfig, RomSource, load_rom_data, load_rom_data_with_config};

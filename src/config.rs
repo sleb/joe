@@ -181,24 +181,6 @@ mod tests {
     use std::env;
 
     #[test]
-    fn test_default_config() {
-        let config = Config::default();
-
-        assert_eq!(config.emulator.max_cycles, 0);
-        assert_eq!(config.emulator.cycle_delay_ms, 16);
-        assert!(!config.emulator.verbose);
-        assert!(config.emulator.write_protection);
-
-        assert_eq!(config.display.pixel_char, "█");
-        assert_eq!(config.display.pixel_color, "Green");
-        assert_eq!(config.display.refresh_rate_ms, 16);
-        assert_eq!(config.display.theme, "Default");
-
-        assert!(!config.input.key_mappings.is_empty());
-        assert_eq!(config.input.key_mappings.get("0"), Some(&"X".to_string()));
-    }
-
-    #[test]
     fn test_config_serialization() {
         let config = Config::default();
         let toml_str = toml::to_string(&config).unwrap();

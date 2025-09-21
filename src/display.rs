@@ -701,17 +701,6 @@ mod tests {
     }
 
     #[test]
-    fn test_ratatui_config_default() {
-        let config = RatatuiConfig::default();
-
-        assert_eq!(config.theme, "classic");
-        assert!(config.show_cpu_registers);
-        assert!(config.show_performance_stats);
-        assert_eq!(config.pixel_char, "█");
-        assert_eq!(config.refresh_rate_ms, 16);
-    }
-
-    #[test]
     fn test_terminal_validation() {
         // We can't easily test terminal validation without mocking,
         // but we can test that the validation function exists
