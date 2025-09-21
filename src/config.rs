@@ -106,7 +106,7 @@ impl Default for Config {
                 write_protection: true,
             },
             display: DisplaySettings {
-                pixel_char: "█".to_string(),
+                pixel_char: "██".to_string(),
                 pixel_color: "Green".to_string(),
                 refresh_rate_ms: 16,
                 theme: "Default".to_string(),
