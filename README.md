@@ -27,7 +27,7 @@ Try it yourself: `joe run <ROM>`
 - **Modular Design**: Separate components for CPU, Memory, Display, Input, and coordination
 - **Clean Abstraction**: The `Emulator` struct provides a simple interface that manages all complexity internally
 - **Library-First**: Can be used as both a CLI tool and embedded in other Rust projects
-**Extensible Rendering**: Trait-based system supports ASCII terminal and future GUI renderers
+  **Extensible Rendering**: Trait-based system supports ASCII terminal and future GUI renderers
 
 ## Installation
 
@@ -205,6 +205,9 @@ joe run <ROM> --verbose
 
 # Set maximum cycles (0 = unlimited, programs can run indefinitely)
 joe run <ROM> --max-cycles 100
+
+# Run in headless mode (no terminal UI, perfect for automation/testing)
+joe run <ROM> --headless --max-cycles 50
 ```
 
 ### Analyzing ROMs
@@ -230,6 +233,9 @@ joe run game.ch8
 # Remote URL examples
 joe run https://example.com/games/tetris.ch8
 joe analyze https://retro-games.org/roms/pong.ch8
+
+# Headless mode with URLs (great for CI/automation)
+joe run https://github.com/Timendus/chip8-test-suite/raw/main/bin/2-ibm-logo.ch8 --headless --max-cycles 100
 ```
 
 **Features:**
@@ -281,7 +287,7 @@ loop {
 
 - **Clean API**: Simple `Emulator` struct that manages all components
 - **Flexible Configuration**: Customize timing, rendering, and execution behavior
-**Multiple Renderers**: ASCII terminal or implement your own
+  **Multiple Renderers**: ASCII terminal or implement your own
 - **Statistics**: Get real-time execution and display statistics
 - **Error Handling**: Comprehensive error types with context
 - **Step-by-Step Execution**: Run individual cycles for debugging or integration
@@ -393,7 +399,7 @@ joe analyze https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-lo
 - **Display system**: 64x32 framebuffer with XOR sprite drawing and collision detection
 - **CPU architecture**: Complete register management, stack, timers, state machine
 - **Signal handling**: Graceful Ctrl+C with statistics display
-**Multiple renderers**: ASCII terminal mode with extensible trait system
+  **Multiple renderers**: ASCII terminal mode with extensible trait system
 - **Testing**: Comprehensive unit and integration test coverage (74 tests)
 
 **Runs Real ROMs:**
@@ -700,6 +706,7 @@ F = "V"
 4. **Reset**: `joe config reset` restores defaults
 
 Example with config integration:
+
 ```bash
 # Set defaults in config, then run with overrides
 joe config init

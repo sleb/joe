@@ -88,7 +88,7 @@ pub enum RendererError {
     #[error("Terminal initialization failed: {0}")]
     TerminalInit(#[from] io::Error),
 
-    #[error("Terminal too small: {width}x{height} (minimum: 80x24)")]
+    #[error("Terminal too small: {width}x{height} (minimum: 80x12)")]
     TerminalTooSmall { width: u16, height: u16 },
 
     #[error("Not running in a TTY - emulator requires a terminal")]
@@ -313,14 +313,14 @@ impl RatatuiRenderer {
     }
 
     fn validate_terminal() -> Result<(), RendererError> {
-        // Check if we're in a TTY
-        if !IsTty::is_tty(&io::stdin()) {
+        // Check if we're in a TTY - check stdout since that's where we render
+        if !IsTty::is_tty(&io::stdout()) {
             return Err(RendererError::NotATty);
         }
 
         // Check terminal size
         let (width, height) = terminal_size()?;
-        if width < 80 || height < 20 {
+        if width < 80 || height < 12 {
             return Err(RendererError::TerminalTooSmall { width, height });
         }
 
@@ -739,7 +739,7 @@ mod tests {
                 // Expected when running in CI or non-TTY environment
             }
             Err(RendererError::TerminalTooSmall { .. }) => {
-                // Expected if terminal is smaller than 80x24
+                // Expected if terminal is smaller than 80x12
             }
             Err(_) => {
                 // Other errors are also acceptable in test environment

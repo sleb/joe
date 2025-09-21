@@ -138,7 +138,21 @@ impl Emulator {
         // Create renderer with key sender
         let ratatui_config =
             crate::display::RatatuiConfig::from_display_settings(&user_config.display);
-        let mut renderer = RatatuiRenderer::new_with_key_sender(ratatui_config, Some(key_sender))?;
+        let renderer = RatatuiRenderer::new_with_key_sender(ratatui_config, Some(key_sender))?;
+
+        self.run_with_renderer(Some(renderer))
+    }
+
+    /// Run the emulator without terminal UI (headless mode)
+    pub fn run_headless(&mut self) -> Result<(), EmulatorError> {
+        self.run_with_renderer(None)
+    }
+
+    /// Core emulation loop with optional renderer
+    fn run_with_renderer(
+        &mut self,
+        mut renderer: Option<RatatuiRenderer>,
+    ) -> Result<(), EmulatorError> {
         self.is_running.store(true, Ordering::SeqCst);
         self.cycles_executed = 0;
 
@@ -150,9 +164,14 @@ impl Emulator {
         .expect("Error setting Ctrl+C handler");
 
         let cycle_delay = Duration::from_millis(self.config.cycle_delay_ms);
-        let _min_render_interval = Duration::from_millis(100); // Max 10 FPS for display updates (not used in current implementation)
 
-        println!("Starting emulation...");
+        // Print appropriate startup message
+        if renderer.is_some() {
+            println!("Starting emulation...");
+        } else {
+            println!("Starting emulation in headless mode...");
+        }
+
         if self.config.verbose {
             println!("Verbose mode enabled - showing CPU state each cycle");
         }
@@ -187,8 +206,10 @@ impl Emulator {
                 );
             }
 
-            // Poll input backend
-            self.input.update();
+            // Poll input backend (only needed for renderer mode)
+            if renderer.is_some() {
+                self.input.update();
+            }
 
             // Execute one CPU cycle
             match self
@@ -206,22 +227,24 @@ impl Emulator {
                         break;
                     }
 
-                    // Handle display rendering and control actions
-                    match renderer.render(&self.display, self.cycles_executed)? {
-                        ControlAction::Quit => {
-                            println!("\nReceived quit command, stopping...");
-                            break;
-                        }
-                        ControlAction::Reset => {
-                            println!("\nResetting emulator...");
-                            self.reset();
-                        }
-                        ControlAction::TogglePause => {
-                            // TODO: Implement pause functionality
-                            println!("\nPause/Resume functionality not yet implemented");
-                        }
-                        ControlAction::None => {
-                            // Continue normal execution
+                    // Handle display rendering and control actions (only if renderer exists)
+                    if let Some(ref mut r) = renderer {
+                        match r.render(&self.display, self.cycles_executed)? {
+                            ControlAction::Quit => {
+                                println!("\nReceived quit command, stopping...");
+                                break;
+                            }
+                            ControlAction::Reset => {
+                                println!("\nResetting emulator...");
+                                self.reset();
+                            }
+                            ControlAction::TogglePause => {
+                                // TODO: Implement pause functionality
+                                println!("\nPause/Resume functionality not yet implemented");
+                            }
+                            ControlAction::None => {
+                                // Continue normal execution
+                            }
                         }
                     }
                 }

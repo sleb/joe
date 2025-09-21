@@ -23,6 +23,10 @@ pub struct RunCommand {
     /// Show CPU state after each cycle
     #[arg(short = 'v', long)]
     pub verbose: bool,
+
+    /// Run without terminal UI (headless mode for testing/automation)
+    #[arg(long)]
+    pub headless: bool,
 }
 
 impl RunCommand {
@@ -81,8 +85,15 @@ impl RunCommand {
         emulator.load_rom(&rom_data)?;
         println!("ROM loaded at address 0x{:04X}", 0x200);
 
-        // Run the emulator (it will create its own renderer with channel integration)
-        emulator.run()?;
+        // Run the emulator
+        if self.headless {
+            // Run in headless mode - just execute cycles without UI
+            println!("Running in headless mode...");
+            emulator.run_headless()?;
+        } else {
+            // Run with terminal UI
+            emulator.run()?;
+        }
         Ok(())
     }
 }
@@ -99,6 +110,7 @@ mod tests {
             max_cycles: Some(100),
             cycle_delay_ms: Some(16),
             verbose: false,
+            headless: false,
         };
 
         assert_eq!(cmd.max_cycles, Some(100));
@@ -114,6 +126,7 @@ mod tests {
             max_cycles: Some(200),
             cycle_delay_ms: Some(8),
             verbose: true,
+            headless: false,
         };
 
         let config = EmulatorConfig {
