@@ -138,7 +138,7 @@ impl Emulator {
         // Create renderer with key sender
         let ratatui_config =
             crate::display::RatatuiConfig::from_display_settings(&user_config.display);
-        let renderer = RatatuiRenderer::new_with_key_sender(ratatui_config, Some(key_sender))?;
+        let renderer = RatatuiRenderer::new(ratatui_config, key_sender)?;
 
         self.run_with_renderer(Some(renderer))
     }

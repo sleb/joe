@@ -279,20 +279,12 @@ pub struct RatatuiRenderer {
     config: RatatuiConfig,
     stats_history: VecDeque<(Instant, usize)>, // (timestamp, cycles) for FPS calculation
     last_render: Instant,
-    key_sender: Option<Sender<KeyEvent>>,
+    key_sender: Sender<KeyEvent>,
 }
 
 impl RatatuiRenderer {
-    /// Create a new ratatui renderer
-    pub fn new(config: RatatuiConfig) -> Result<Self, RendererError> {
-        Self::new_with_key_sender(config, None)
-    }
-
     /// Create a new ratatui renderer with key event sender
-    pub fn new_with_key_sender(
-        config: RatatuiConfig,
-        key_sender: Option<Sender<KeyEvent>>,
-    ) -> Result<Self, RendererError> {
+    pub fn new(config: RatatuiConfig, key_sender: Sender<KeyEvent>) -> Result<Self, RendererError> {
         // Validate terminal capabilities upfront
         Self::validate_terminal()?;
 
@@ -385,18 +377,14 @@ impl RatatuiRenderer {
                         _ => {
                             // Forward other keys to the Input system via channel
                             if let KeyCode::Char(ch) = key.code {
-                                if let Some(sender) = &self.key_sender {
-                                    let _ = sender.send(KeyEvent::Pressed(ch));
-                                }
+                                let _ = self.key_sender.send(KeyEvent::Pressed(ch));
                             }
                         }
                     }
                 } else if key.kind == KeyEventKind::Release {
                     // Handle key releases for CHIP-8 games
                     if let KeyCode::Char(ch) = key.code {
-                        if let Some(sender) = &self.key_sender {
-                            let _ = sender.send(KeyEvent::Released(ch));
-                        }
+                        let _ = self.key_sender.send(KeyEvent::Released(ch));
                     }
                 }
             }
