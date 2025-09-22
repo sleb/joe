@@ -6,7 +6,7 @@
 //! running CHIP-8 programs.
 
 use crate::display::{ControlAction, RatatuiRenderer};
-use crate::input::KeyEvent;
+use crate::input::{KeyEvent, resolve_key_mappings};
 use crate::{Cpu, Display, Input, InputBus, Memory};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -132,8 +132,9 @@ impl Emulator {
         // Create key event channel
         let (key_sender, key_receiver) = mpsc::channel::<KeyEvent>();
 
-        // Create input system with channel receiver
-        self.input = Input::with_key_receiver(key_receiver);
+        // Create input system with resolved config mappings and channel receiver
+        let key_mappings = resolve_key_mappings(Some(&user_config.input.key_mappings))?;
+        self.input = Input::with_mappings(key_mappings, Some(key_receiver));
 
         // Create renderer with key sender
         let ratatui_config =

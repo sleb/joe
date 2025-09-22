@@ -96,6 +96,9 @@ pub enum RendererError {
 
     #[error("Crossterm error: {0}")]
     CrosstermError(String),
+
+    #[error("Input error: {0}")]
+    InputError(String),
 }
 
 /// CHIP-8 Display implementation with 64x32 framebuffer
@@ -374,17 +377,30 @@ impl RatatuiRenderer {
                         KeyCode::Esc => {
                             return Ok(ControlAction::Quit);
                         }
-                        _ => {
+                        KeyCode::Char(ch) => {
                             // Forward other keys to the Input system via channel
-                            if let KeyCode::Char(ch) = key.code {
-                                let _ = self.key_sender.send(KeyEvent::Pressed(ch));
-                            }
+                            self.key_sender.send(KeyEvent::Pressed(ch)).map_err(|e| {
+                                RendererError::InputError(format!("Failed to send key ({ch}): {e}"))
+                            })?;
+                        }
+                        _ => {
+                            return Err(RendererError::InputError(format!(
+                                "Unhandled key: {:?}",
+                                key
+                            )));
                         }
                     }
                 } else if key.kind == KeyEventKind::Release {
                     // Handle key releases for CHIP-8 games
                     if let KeyCode::Char(ch) = key.code {
-                        let _ = self.key_sender.send(KeyEvent::Released(ch));
+                        self.key_sender.send(KeyEvent::Released(ch)).map_err(|e| {
+                            RendererError::InputError(format!("Failed to release key ({ch}): {e}"))
+                        })?;
+                    } else {
+                        return Err(RendererError::InputError(format!(
+                            "Unhandled key release: {:?}",
+                            key
+                        )));
                     }
                 }
             }

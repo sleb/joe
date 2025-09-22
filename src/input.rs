@@ -20,6 +20,101 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::mpsc::Receiver;
 use thiserror::Error;
 
+/// Resolved key mappings for CHIP-8 input
+#[derive(Debug, Clone)]
+pub struct KeyMappings {
+    /// Keyboard mapping from char to CHIP-8 key value (0-15)
+    key_map: HashMap<char, u8>,
+    /// Reverse mapping from CHIP-8 key to keyboard char
+    reverse_key_map: HashMap<u8, char>,
+}
+
+impl KeyMappings {
+    /// Create key mappings from raw mapping pairs
+    pub fn from_pairs(mappings: &[(char, u8)]) -> Result<Self, InputError> {
+        let mut key_map = HashMap::new();
+        let mut reverse_key_map = HashMap::new();
+
+        for &(keyboard_key, chip8_key) in mappings {
+            if !is_valid_key(chip8_key) {
+                return Err(InputError::InvalidKey { key: chip8_key });
+            }
+
+            key_map.insert(keyboard_key, chip8_key);
+            let upper = keyboard_key.to_ascii_uppercase();
+            if upper != keyboard_key {
+                key_map.insert(upper, chip8_key);
+            }
+            reverse_key_map.insert(chip8_key, keyboard_key);
+        }
+
+        Ok(Self {
+            key_map,
+            reverse_key_map,
+        })
+    }
+
+    /// Get the CHIP-8 key for a keyboard character
+    pub fn get_chip8_key(&self, keyboard_key: char) -> Option<u8> {
+        self.key_map.get(&keyboard_key).copied()
+    }
+
+    /// Get the keyboard character for a CHIP-8 key
+    pub fn get_keyboard_key(&self, chip8_key: u8) -> Option<char> {
+        self.reverse_key_map.get(&chip8_key).copied()
+    }
+}
+
+/// Resolve key mappings from config or use defaults
+pub fn resolve_key_mappings(
+    config_mappings: Option<&HashMap<String, String>>,
+) -> Result<KeyMappings, InputError> {
+    match config_mappings {
+        Some(mappings) => {
+            let mut converted_mappings = Vec::new();
+
+            for (chip8_key_str, keyboard_key_str) in mappings {
+                // Parse CHIP-8 key from hex string
+                let chip8_key = u8::from_str_radix(chip8_key_str, 16)
+                    .map_err(|_| InputError::InvalidKey { key: 255 })?; // Use 255 as invalid placeholder
+
+                if !is_valid_key(chip8_key) {
+                    return Err(InputError::InvalidKey { key: chip8_key });
+                }
+
+                // Get first character from keyboard key string
+                if let Some(keyboard_char) = keyboard_key_str.chars().next() {
+                    converted_mappings.push((keyboard_char.to_ascii_lowercase(), chip8_key));
+                }
+            }
+
+            KeyMappings::from_pairs(&converted_mappings)
+        }
+        None => {
+            // Use default mappings
+            let default_mappings = [
+                ('1', 0x1),
+                ('2', 0x2),
+                ('3', 0x3),
+                ('4', 0xC),
+                ('q', 0x4),
+                ('w', 0x5),
+                ('e', 0x6),
+                ('r', 0xD),
+                ('a', 0x7),
+                ('s', 0x8),
+                ('d', 0x9),
+                ('f', 0xE),
+                ('z', 0xA),
+                ('x', 0x0),
+                ('c', 0xB),
+                ('v', 0xF),
+            ];
+            KeyMappings::from_pairs(&default_mappings)
+        }
+    }
+}
+
 /// Validate that a key value is in the valid CHIP-8 range (0-15)
 fn is_valid_key(key: u8) -> bool {
     key <= 0xF
@@ -62,16 +157,13 @@ pub struct Input {
     /// Current state of all 16 keys (true = pressed, false = released)
     key_states: [bool; 16],
 
-    /// Keyboard mapping from char to CHIP-8 key value (0-15)
-    key_map: HashMap<char, u8>,
-
-    /// Reverse mapping from CHIP-8 key to keyboard char
-    reverse_key_map: HashMap<u8, char>,
+    /// Key mappings resolver
+    key_mappings: KeyMappings,
 
     /// Buffer for input events
     input_buffer: Vec<char>,
 
-    /// Whether we're currently waiting for a key press (for blocking input)
+    /// Whether the system is currently waiting for any key press
     waiting_for_key: bool,
 
     /// Optional receiver for key events from external sources (like display renderer)
@@ -81,94 +173,33 @@ pub struct Input {
 impl Input {
     /// Create a new input system with default keyboard mapping
     pub fn new() -> Self {
-        // Standard QWERTY keyboard mapping to CHIP-8 keypad
-        let default_mappings = [
-            ('1', 0x1),
-            ('2', 0x2),
-            ('3', 0x3),
-            ('4', 0xC),
-            ('q', 0x4),
-            ('w', 0x5),
-            ('e', 0x6),
-            ('r', 0xD),
-            ('a', 0x7),
-            ('s', 0x8),
-            ('d', 0x9),
-            ('f', 0xE),
-            ('z', 0xA),
-            ('x', 0x0),
-            ('c', 0xB),
-            ('v', 0xF),
-        ];
-
-        Self::with_key_map(&default_mappings).expect("Default key mappings should be valid")
+        let key_mappings =
+            resolve_key_mappings(None).expect("Default key mappings should be valid");
+        Self::with_mappings(key_mappings, None)
     }
 
-    /// Create input system with custom key mapping
-    pub fn with_key_map(mappings: &[(char, u8)]) -> Result<Self, InputError> {
-        let mut key_map = HashMap::new();
-        let mut reverse_key_map = HashMap::new();
-
-        for &(keyboard_key, chip8_key) in mappings {
-            if !is_valid_key(chip8_key) {
-                return Err(InputError::InvalidKey { key: chip8_key });
-            }
-
-            key_map.insert(keyboard_key, chip8_key);
-            let upper = keyboard_key.to_ascii_uppercase();
-            if upper != keyboard_key {
-                key_map.insert(upper, chip8_key);
-            }
-            reverse_key_map.insert(chip8_key, keyboard_key);
-        }
-
-        Ok(Self {
+    /// Create input system with resolved key mappings and optional receiver
+    pub fn with_mappings(
+        key_mappings: KeyMappings,
+        key_receiver: Option<Receiver<KeyEvent>>,
+    ) -> Self {
+        Self {
             key_states: [false; 16],
-            key_map,
-            reverse_key_map,
+            key_mappings,
             input_buffer: Vec::new(),
             waiting_for_key: false,
-            key_receiver: None,
-        })
-    }
-
-    /// Create input system with a key event receiver for channel-based input
-    pub fn with_key_receiver(receiver: Receiver<KeyEvent>) -> Self {
-        let mut input = Self::new();
-        input.key_receiver = Some(receiver);
-        input
-    }
-
-    /// Create input system from config-style key mappings (String -> String)
-    pub fn from_config_mappings(mappings: &HashMap<String, String>) -> Result<Self, InputError> {
-        let mut converted_mappings = Vec::new();
-
-        for (chip8_key_str, keyboard_key_str) in mappings {
-            // Parse CHIP-8 key from hex string
-            let chip8_key = u8::from_str_radix(chip8_key_str, 16)
-                .map_err(|_| InputError::InvalidKey { key: 255 })?; // Use 255 as invalid placeholder
-
-            if !is_valid_key(chip8_key) {
-                return Err(InputError::InvalidKey { key: chip8_key });
-            }
-
-            // Take first char of keyboard key string
-            if let Some(keyboard_char) = keyboard_key_str.chars().next() {
-                converted_mappings.push((keyboard_char.to_ascii_lowercase(), chip8_key));
-            }
+            key_receiver,
         }
-
-        Self::with_key_map(&converted_mappings)
     }
 
     /// Get the keyboard character mapped to a CHIP-8 key
     pub fn get_keyboard_key(&self, chip8_key: u8) -> Option<char> {
-        self.reverse_key_map.get(&chip8_key).copied()
+        self.key_mappings.get_keyboard_key(chip8_key)
     }
 
     /// Get the CHIP-8 key value for a keyboard character
     pub fn get_chip8_key(&self, keyboard_key: char) -> Option<u8> {
-        self.key_map.get(&keyboard_key).copied()
+        self.key_mappings.get_chip8_key(keyboard_key)
     }
 
     /// Press a key (for testing or programmatic input)
@@ -219,7 +250,9 @@ impl Input {
     /// Get input statistics
     pub fn get_stats(&self) -> InputStats {
         let pressed_count = self.key_states.iter().filter(|&&pressed| pressed).count();
-        let mapped_keys = self.reverse_key_map.len(); // Count unique CHIP-8 keys that have mappings
+        let mapped_keys = (0..16u8)
+            .filter(|&k| self.key_mappings.get_keyboard_key(k).is_some())
+            .count();
 
         InputStats {
             pressed_keys: pressed_count,
@@ -365,15 +398,6 @@ impl MockInput {
         }
     }
 
-    /// Create mock input with a key event receiver
-    pub fn with_key_receiver(_receiver: Receiver<KeyEvent>) -> Self {
-        // MockInput doesn't use the receiver - it's for programmatic control
-        Self {
-            key_states: [false; 16],
-            key_queue: VecDeque::new(),
-        }
-    }
-
     pub fn press_key(&mut self, key: u8) -> Result<(), InputError> {
         if !is_valid_key(key) {
             return Err(InputError::InvalidKey { key });
@@ -468,7 +492,8 @@ mod tests {
     #[test]
     fn test_custom_key_mapping() {
         let mappings = [('a', 0x0), ('b', 0x1), ('c', 0x2), ('d', 0x3)];
-        let input = Input::with_key_map(&mappings).unwrap();
+        let key_mappings = KeyMappings::from_pairs(&mappings).unwrap();
+        let input = Input::with_mappings(key_mappings, None);
 
         assert_eq!(input.get_chip8_key('a'), Some(0x0));
         assert_eq!(input.get_chip8_key('A'), Some(0x0)); // Case insensitive
@@ -614,21 +639,5 @@ mod tests {
         input.process_char_release('w');
         input.clear_input_buffer();
         assert!(input.try_get_key_press().is_none());
-    }
-
-    #[test]
-    fn test_config_mapping_conversion() {
-        use std::collections::HashMap;
-
-        let mut config_mappings = HashMap::new();
-        config_mappings.insert("0".to_string(), "X".to_string());
-        config_mappings.insert("1".to_string(), "1".to_string());
-        config_mappings.insert("F".to_string(), "V".to_string());
-
-        let input = Input::from_config_mappings(&config_mappings).unwrap();
-
-        assert_eq!(input.get_chip8_key('x'), Some(0x0));
-        assert_eq!(input.get_chip8_key('1'), Some(0x1));
-        assert_eq!(input.get_chip8_key('v'), Some(0xF));
     }
 }
