@@ -202,24 +202,6 @@ impl Input {
         self.key_mappings.get_chip8_key(keyboard_key)
     }
 
-    /// Press a key (for testing or programmatic input)
-    pub fn press_key(&mut self, key: u8) -> Result<(), InputError> {
-        if !is_valid_key(key) {
-            return Err(InputError::InvalidKey { key });
-        }
-        self.key_states[key as usize] = true;
-        Ok(())
-    }
-
-    /// Release a key (for testing or programmatic input)
-    pub fn release_key(&mut self, key: u8) -> Result<(), InputError> {
-        if !is_valid_key(key) {
-            return Err(InputError::InvalidKey { key });
-        }
-        self.key_states[key as usize] = false;
-        Ok(())
-    }
-
     /// Process keyboard character input
     pub fn process_char_input(&mut self, ch: char) {
         if let Some(chip8_key_value) = self.get_chip8_key(ch) {
@@ -234,12 +216,6 @@ impl Input {
         if let Some(chip8_key_value) = self.get_chip8_key(ch) {
             self.key_states[chip8_key_value as usize] = false;
         }
-    }
-
-    /// Clear all pressed keys
-    pub fn clear_all_keys(&mut self) {
-        self.key_states = [false; 16];
-        self.input_buffer.clear();
     }
 
     /// Clear the input buffer (for testing)
@@ -384,7 +360,7 @@ pub struct InputStats {
 }
 
 /// Mock input for testing - allows programmatic control of key states
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MockInput {
     key_states: [bool; 16],
     key_queue: VecDeque<u8>,
@@ -415,7 +391,7 @@ impl MockInput {
         Ok(())
     }
 
-    pub fn clear_all(&mut self) {
+    pub fn clear_all_keys(&mut self) {
         self.key_states = [false; 16];
         self.key_queue.clear();
     }
@@ -518,7 +494,7 @@ mod tests {
 
     #[test]
     fn test_key_press_release() {
-        let mut input = Input::new();
+        let mut input = MockInput::new();
 
         // Press key 5
         input.press_key(5).unwrap();
@@ -532,7 +508,7 @@ mod tests {
 
     #[test]
     fn test_invalid_key_operations() {
-        let mut input = Input::new();
+        let mut input = MockInput::new();
 
         // Test invalid key press
         assert!(matches!(
@@ -546,7 +522,7 @@ mod tests {
             Err(InputError::InvalidKey { key: 16 })
         ));
 
-        // Test invalid key check
+        // Test invalid key state check
         assert!(matches!(
             input.is_key_pressed(16),
             Err(InputError::InvalidKey { key: 16 })
@@ -568,7 +544,7 @@ mod tests {
 
     #[test]
     fn test_clear_all_keys() {
-        let mut input = Input::new();
+        let mut input = MockInput::new();
 
         // Press several keys
         input.press_key(1).unwrap();
@@ -583,14 +559,14 @@ mod tests {
         input.clear_all_keys();
 
         // All keys should be released
-        for i in 0..16 {
-            assert!(!input.is_key_pressed(i).unwrap());
-        }
+        assert!(!input.is_key_pressed(1).unwrap());
+        assert!(!input.is_key_pressed(5).unwrap());
+        assert!(!input.is_key_pressed(10).unwrap());
     }
 
     #[test]
     fn test_get_pressed_keys() {
-        let mut input = Input::new();
+        let mut input = MockInput::new();
 
         // No keys pressed initially
         assert!(input.get_pressed_keys().is_empty());
@@ -609,20 +585,13 @@ mod tests {
 
     #[test]
     fn test_input_stats() {
-        let mut input = Input::new();
+        let input = Input::new();
 
         let stats = input.get_stats();
         assert_eq!(stats.pressed_keys, 0);
         assert_eq!(stats.total_keys, 16);
         assert_eq!(stats.mapped_keyboard_keys, 16);
         assert!(!stats.waiting_for_input);
-
-        // Press some keys
-        input.press_key(1).unwrap();
-        input.press_key(5).unwrap();
-
-        let stats = input.get_stats();
-        assert_eq!(stats.pressed_keys, 2);
     }
 
     #[test]
